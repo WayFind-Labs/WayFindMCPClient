@@ -52,10 +52,10 @@ WayFindMCPClient/
 ├── skills/
 │   └── wayfind-architecture/
 │       └── SKILL.md                        ✅ DONE
-├── pyproject.toml                           Phase 1
-├── .env.example                             Phase 1
-├── .gitignore                               Phase 1
-├── README.md                                Phase 1
+├── pyproject.toml                           ✅ DONE
+├── .env.example                             ✅ DONE
+├── .gitignore                               ✅ DONE
+├── README.md                                ✅ DONE
 │
 ├── app/                                     Phase 3
 │   ├── __init__.py
@@ -145,23 +145,25 @@ WayFindMCPClient/
 
 ---
 
-## Phase 1 — Project Setup & Tooling
+## Phase 1 — Project Setup & Tooling ✅ COMPLETE
 
 ### Tasks
 
-- [ ] Initialize Python project with `pyproject.toml` (Python 3.12+)
-- [ ] Choose and configure package manager: **uv** (preferred) or pip
-- [ ] Define dependencies:
+- [x] Initialize Python project with `pyproject.toml` (Python 3.12+)
+- [x] Choose and configure package manager: **uv** (preferred) or pip
+- [x] Define dependencies:
   - `fastapi` + `uvicorn[standard]`
   - `langgraph` + `langchain-core`
   - `fastmcp`
-  - `langchain-google-genai` or `langchain-openai` (LLM provider)
+  - `langchain-google-genai` (Gemini — confirmed LLM provider)
   - `pydantic` v2
   - `python-dotenv`
   - `httpx` (async HTTP for service clients)
   - `pytest` + `pytest-asyncio` (testing)
-  - `redis` (optional, for production session store)
-- [ ] Create `.env.example` with all required env vars:
+  - `redis` (session store — Redis from day 1)
+  - `pyyaml` (config file loading)
+  - `python-multipart` (media/image upload)
+- [x] Create `.env.example` with all required env vars:
   - `LLM_PROVIDER` (gemini | openai)
   - `GEMINI_API_KEY` / `OPENAI_API_KEY`
   - `POSTGRES_SERVICE_URL`
@@ -176,8 +178,9 @@ WayFindMCPClient/
   - `MEDIA_SAFETY_SCAN_URL`
   - `SECRET_KEY`
   - `CORS_ORIGINS`
-- [ ] Create `.gitignore` (Python defaults + `.env`)
-- [ ] Create `README.md` with architecture overview and dev setup
+  - `MCP_TRANSPORT` + `MCP_SERVER_URL` (SSE — confirmed transport)
+- [x] Create `.gitignore` (Python defaults + `.env`)
+- [x] Create `README.md` with architecture overview and dev setup
 
 ---
 
@@ -1041,7 +1044,7 @@ Never exposes stack traces, internal errors, or infrastructure details.
 
 | Phase | Description | Deliverable |
 |-------|-------------|-------------|
-| 1 | Project setup | pyproject.toml, .env.example, README |
+| 1 | Project setup ✅ | pyproject.toml, .env.example, .gitignore, README.md |
 | 2 | Pydantic schemas | schemas/ directory (9 files) |
 | 3 | FastAPI entry point | app/ directory |
 | 4 | LangGraph state | agent/state.py |
