@@ -1,0 +1,1 @@
+﻿"""Wayfind FastAPI application package."""

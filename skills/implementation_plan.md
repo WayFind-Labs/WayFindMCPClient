@@ -57,11 +57,11 @@ WayFindMCPClient/
 ├── .gitignore                               ✅ DONE
 ├── README.md                                ✅ DONE
 │
-├── app/                                     Phase 3
+├── app/                                     ✅ DONE
 │   ├── __init__.py
 │   ├── main.py                              ← FastAPI app factory
 │   ├── config.py                            ← Pydantic Settings
-│   ├── session.py                           ← Session store (dict / Redis)
+│   ├── session.py                           ← Session store (memory / Redis)
 │   └── routes/
 │       ├── __init__.py
 │       └── agent.py                         ← POST /api/agent
@@ -110,7 +110,7 @@ WayFindMCPClient/
 │       ├── get_guidance.py
 │       └── get_case_status.py
 │
-├── schemas/                                 Phase 2
+├── schemas/                                 ✅ DONE
 │   ├── __init__.py
 │   ├── child.py                             ← ChildSearchCriteria, FoundChildReport
 │   ├── location.py                          ← Location
@@ -184,7 +184,7 @@ WayFindMCPClient/
 
 ---
 
-## Phase 2 — Pydantic Schemas
+## Phase 2 — Pydantic Schemas ✅ COMPLETE
 
 > **All schemas are established first.** Every layer (LangGraph, MCP Client, FastMCP tools, service clients) imports from `schemas/`.
 
@@ -305,7 +305,7 @@ _(As specified in SKILL.md — all structured return types for MCP tools)_
 
 ---
 
-## Phase 3 — FastAPI Entry Point
+## Phase 3 — FastAPI Entry Point ✅ COMPLETE
 
 ### `app/config.py`
 
@@ -1045,8 +1045,8 @@ Never exposes stack traces, internal errors, or infrastructure details.
 | Phase | Description | Deliverable |
 |-------|-------------|-------------|
 | 1 | Project setup ✅ | pyproject.toml, .env.example, .gitignore, README.md |
-| 2 | Pydantic schemas | schemas/ directory (9 files) |
-| 3 | FastAPI entry point | app/ directory |
+| 2 | Pydantic schemas ✅ | schemas/ directory (10 files incl. __init__.py) |
+| 3 | FastAPI entry point ✅ | app/ directory (6 files) — endpoint live, session store wired, CORS + rate-limiting |
 | 4 | LangGraph state | agent/state.py |
 | 5 | LangGraph nodes | agent/nodes/ (19 nodes) |
 | 6 | MCP Client | mcp_client/ (LLM + client) |
