@@ -19,7 +19,7 @@ Field ownership by phase:
 
 from __future__ import annotations
 
-from enum import Enum
+from enum import StrEnum
 from typing import Annotated, Any, TypedDict
 
 from langgraph.graph import add_messages
@@ -29,10 +29,9 @@ from schemas.evidence import ConfidenceTier, MatchEvidence
 from schemas.image import ImageMatch
 from schemas.location import Location
 
-
 # ── Intent enum ───────────────────────────────────────────────────────────────
 
-class Intent(str, Enum):
+class Intent(StrEnum):
     """Possible high-level intents detected from the user's message.
 
     MISSING_CHILD  — user is searching for a child they reported missing

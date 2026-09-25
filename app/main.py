@@ -25,15 +25,18 @@ Usage:
 from __future__ import annotations
 
 import logging
+from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
-from typing import AsyncGenerator
 
 from fastapi import FastAPI, Request, status
 from fastapi.responses import JSONResponse
 
+from agent.dependencies import set_llm, set_mcp_client
 from app.config import get_settings
 from app.routes.agent import router as agent_router
 from app.session import create_session_store
+from mcp_client.client import WayfindMCPClient
+from mcp_client.llm import WayfindLLM
 
 logger = logging.getLogger(__name__)
 
@@ -62,12 +65,28 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     )
     app.state.session_store = session_store
 
+    # ── LLM Client (Phase 6) ──────────────────────────────────────────────────
+    logger.info("Initialising WayfindLLM (provider=%s)", settings.llm_provider)
+    llm_client = WayfindLLM(
+        provider=settings.llm_provider,
+        api_key=settings.gemini_api_key,
+    )
+    set_llm(llm_client)
+    app.state.llm = llm_client
+
+    # ── MCP Client (Phase 6) ──────────────────────────────────────────────────
+    logger.info("Initialising WayfindMCPClient (transport=%s)", settings.mcp_transport)
+    mcp_client = WayfindMCPClient(
+        transport=settings.mcp_transport,
+        server_url=settings.mcp_server_url,
+    )
+    await mcp_client.startup()
+    set_mcp_client(mcp_client)
+    app.state.mcp_client = mcp_client
+
     # ── Graph runner (wired in Phase 11) ───────────────────────────────────────
     # Phase 3 placeholder — replaced once agent/runner.py exists.
     app.state.graph_runner = None
-
-    # ── MCP Client (wired in Phase 6) ─────────────────────────────────────────
-    app.state.mcp_client = None
 
     logger.info("Wayfind agent backend started (internal-only mode)")
     yield
@@ -78,7 +97,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
 
     if app.state.mcp_client is not None:
         try:
-            await app.state.mcp_client.close()
+            await app.state.mcp_client.shutdown()
         except Exception:
             logger.warning("Error closing MCP client during shutdown", exc_info=True)
 

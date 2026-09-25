@@ -35,7 +35,7 @@ from typing import Any
 
 from agent.dependencies import get_llm
 from agent.state import Intent, WayfindState
-from schemas.child import AgeRange, ChildSearchCriteria, FoundChildReport, HeightRange
+from schemas.child import AgeRange, ChildSearchCriteria, FoundChildReport
 
 logger = logging.getLogger(__name__)
 

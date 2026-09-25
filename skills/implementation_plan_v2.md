@@ -657,7 +657,7 @@ Conditional edge based on `intent`:
 
 ---
 
-## Phase 6 — MCP Client
+## Phase 6 — MCP Client ✅ COMPLETE
 
 ### `mcp_client/llm.py`
 
@@ -740,7 +740,7 @@ class WayfindMCPClient:
 
 ---
 
-## Phase 7 — FastMCP Server
+## Phase 7 — FastMCP Server ✅ COMPLETE
 
 ### `mcp_server/server.py`
 
@@ -765,7 +765,7 @@ mcp.tool()(get_case_status)
 
 ---
 
-## Phase 8 — FastMCP Tools
+## Phase 8 — FastMCP Tools ✅ COMPLETE
 
 ### Tool 1: `search_child_records`
 

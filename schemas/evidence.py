@@ -1,4 +1,4 @@
-﻿"""
+"""
 schemas/evidence.py
 Models for match scoring and confidence classification.
 
@@ -8,12 +8,12 @@ Thresholds are NEVER hardcoded in Python.
 
 from __future__ import annotations
 
-from enum import Enum
+from enum import StrEnum
 
 from pydantic import BaseModel, Field
 
 
-class ConfidenceTier(str, Enum):
+class ConfidenceTier(StrEnum):
     """Three-tier classification of match confidence.
 
     LOW      — below uncertain_threshold → generate no-match response

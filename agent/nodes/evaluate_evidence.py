@@ -42,7 +42,6 @@ from typing import Any
 
 from agent.state import WayfindState
 from schemas.evidence import ConfidenceTier, MatchEvidence
-from schemas.image import ImageMatch
 
 logger = logging.getLogger(__name__)
 
@@ -102,12 +101,10 @@ def evaluate_evidence(state: WayfindState) -> dict:
 
     # Find image match score for top candidate (if available)
     image_score: float | None = None
-    image_match: ImageMatch | None = None
     for m in image_match_results:
         match_id = m.candidate_case_id if hasattr(m, "candidate_case_id") else m.get("candidate_case_id")
         if match_id == top_case_id:
-            image_score  = m.similarity_score if hasattr(m, "similarity_score") else m.get("similarity_score", 0.0)
-            image_match  = m
+            image_score = m.similarity_score if hasattr(m, "similarity_score") else m.get("similarity_score", 0.0)
             break
 
     # Metadata score: in Phase 5 we have no real score from the DB.

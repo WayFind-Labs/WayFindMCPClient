@@ -1,4 +1,4 @@
-﻿"""
+"""
 schemas/guidance.py
 Return types from the get_guidance MCP tool.
 
@@ -59,3 +59,9 @@ class GuidanceResult(BaseModel):
         default=False,
         description="True when guidance came from static_guidance.yaml due to RAG failure.",
     )
+
+    @property
+    def guidance_text(self) -> str:
+        """Alias for guidance field for backward compatibility."""
+        return self.guidance
+

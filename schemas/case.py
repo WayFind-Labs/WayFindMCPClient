@@ -1,4 +1,4 @@
-﻿"""
+"""
 schemas/case.py
 Return types for case-related MCP tool calls.
 
@@ -44,6 +44,12 @@ class CaseStatusResult(BaseModel):
         default_factory=list,
         description="Recommended next steps for the user based on current status.",
     )
+
+    @property
+    def status_label(self) -> str:
+        """Human-readable status label."""
+        return self.status.replace("_", " ").title()
+
 
 
 class FoundChildSubmissionResult(BaseModel):

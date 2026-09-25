@@ -29,7 +29,6 @@ from __future__ import annotations
 
 import logging
 
-from agent.dependencies import get_llm
 from agent.state import Intent, WayfindState
 from schemas.child import ChildSearchCriteria, FoundChildReport
 
@@ -126,10 +125,7 @@ def _check_found_child(report: FoundChildReport | dict | None) -> list[str]:
     if report is None:
         return list(_FOUND_CHILD_REQUIRED)
 
-    if isinstance(report, dict):
-        loc = report.get("found_location")
-    else:
-        loc = report.found_location
+    loc = report.get("found_location") if isinstance(report, dict) else report.found_location
 
     missing = []
     if not loc or loc == "unknown":

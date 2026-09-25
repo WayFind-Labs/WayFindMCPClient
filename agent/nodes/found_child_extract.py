@@ -34,7 +34,7 @@ from __future__ import annotations
 import logging
 
 from agent.state import WayfindState
-from schemas.child import AgeRange, FoundChildReport, HeightRange
+from schemas.child import FoundChildReport
 
 logger = logging.getLogger(__name__)
 
