@@ -32,6 +32,7 @@ from fastapi import FastAPI, Request, status
 from fastapi.responses import JSONResponse
 
 from agent.dependencies import set_llm, set_mcp_client
+from agent.runner import run_agent
 from app.config import get_settings
 from app.routes.agent import router as agent_router
 from app.session import create_session_store
@@ -85,8 +86,8 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     app.state.mcp_client = mcp_client
 
     # ── Graph runner (wired in Phase 11) ───────────────────────────────────────
-    # Phase 3 placeholder — replaced once agent/runner.py exists.
-    app.state.graph_runner = None
+    logger.info("Wiring LangGraph runner into application state...")
+    app.state.graph_runner = run_agent
 
     logger.info("Wayfind agent backend started (internal-only mode)")
     yield

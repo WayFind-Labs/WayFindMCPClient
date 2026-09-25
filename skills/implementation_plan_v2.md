@@ -999,7 +999,7 @@ missing_child:
 
 ---
 
-## Phase 11 — LangGraph Graph Definition
+## Phase 11 — LangGraph Graph Definition ✅ COMPLETE
 
 ### `agent/graph.py`
 
@@ -1262,8 +1262,8 @@ Never exposes stack traces, internal errors, or infrastructure details.
 | 8 | FastMCP tools | ✅ COMPLETE | 6 tools implemented & tested |
 | 9 | Service clients | ✅ COMPLETE | Async httpx stubs implemented & tested |
 | 10 | Config files | ✅ COMPLETE | `config/evidence_weights.yaml` and `config/static_guidance.yaml` |
-| 11 | LangGraph graph | **NEXT** | `agent/graph.py` + `runner.py` — unchanged |
-| 12 | Follow-up loop | — | Multi-turn integration; session store keyed by `session_id` |
+| 11 | LangGraph graph | ✅ COMPLETE | `agent/graph.py` + `runner.py` compiled & tested |
+| 12 | Follow-up loop | **NEXT** | Multi-turn integration; session store keyed by `session_id` |
 | 13 | Security/media | — | Internal auth middleware only; media in ShelterAppUiBackend |
 | 14 | Failure handling | — | Per-node; errors go into `agent_events` |
 | 15 | Tests | — | Add `test_internal_api.py` for v2 endpoint |
