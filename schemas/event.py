@@ -30,7 +30,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 
 class IncomingEvent(BaseModel):
@@ -55,6 +55,18 @@ class IncomingEvent(BaseModel):
         default=None,
         description="Structured follow-up form answers keyed by field name.",
     )
+
+    @field_validator("media_id")
+    @classmethod
+    def validate_opaque_media_id(cls, v: str | None) -> str | None:
+        if v is None:
+            return None
+        v = v.strip()
+        if not v:
+            return None
+        if "://" in v or "/" in v or "\\" in v:
+            raise ValueError("media_id must be an opaque identifier, not a URL or file path")
+        return v
 
 
 class InternalRequest(BaseModel):

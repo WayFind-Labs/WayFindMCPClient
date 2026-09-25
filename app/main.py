@@ -136,6 +136,7 @@ def create_app() -> FastAPI:
 
     # ── Routers ────────────────────────────────────────────────────────────────
     app.include_router(agent_router, prefix="/internal")
+    _add_health_route(app)
 
     return app
 

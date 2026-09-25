@@ -1152,7 +1152,7 @@ Key requirements for merge logic in `extract_structured_data`:
 
 ---
 
-## Phase 13 — Security (Internal)
+## Phase 13 — Security (Internal) ✅ COMPLETE
 
 In v2, the security surface of this service is drastically reduced because
 `ShelterAppUiBackend` handles the public boundary.
@@ -1264,8 +1264,8 @@ Never exposes stack traces, internal errors, or infrastructure details.
 | 10 | Config files | ✅ COMPLETE | `config/evidence_weights.yaml` and `config/static_guidance.yaml` |
 | 11 | LangGraph graph | ✅ COMPLETE | `agent/graph.py` + `runner.py` compiled & tested |
 | 12 | Follow-up loop | ✅ COMPLETE | Multi-turn integration, form response & session store tested |
-| 13 | Security/media | **NEXT** | Internal auth middleware only; media in ShelterAppUiBackend |
-| 14 | Failure handling | — | Per-node; errors go into `agent_events` |
+| 13 | Security/media | ✅ COMPLETE | `X-Internal-Key` middleware, media_id validation & response isolation tested |
+| 14 | Failure handling | **NEXT** | Per-node failure handling & graceful degradation |
 | 15 | Tests | — | Add `test_internal_api.py` for v2 endpoint |
 
 ---

@@ -53,48 +53,7 @@ router = APIRouter()
 SAFE_ERROR_EVENT = {"type": "error", "message": "Something went wrong. Please try again."}
 
 
-# ── Request / Response models ──────────────────────────────────────────────────
-
-class IncomingEvent(BaseModel):
-    """A single event sent by ShelterAppUiBackend on behalf of the user."""
-
-    type: str = Field(
-        description="Event type: user_message | user_image | user_form_response",
-    )
-    content: str | None = Field(
-        default=None,
-        max_length=4000,
-        description="User's text content. Required for user_message.",
-    )
-    media_id: str | None = Field(
-        default=None,
-        description=(
-            "Opaque media ID issued by ShelterAppUiBackend after safety scan and storage. "
-            "Never a raw file path or object-storage URL."
-        ),
-    )
-    form_data: dict[str, Any] | None = Field(
-        default=None,
-        description="Structured follow-up form answers keyed by field name.",
-    )
-
-
-class InternalRequest(BaseModel):
-    """Body of POST /internal/sessions/{session_id}/events."""
-
-    event: IncomingEvent
-
-
-class AgentEvent(BaseModel):
-    """A single output event produced by the agent, returned to ShelterAppUiBackend."""
-
-    type: str
-    content: str | None = None
-    fields: list[str] | None = None          # request_information
-    message: str | None = None               # request_image | error
-    results: list[dict[str, Any]] | None = None  # search_results
-    record_id: str | None = None             # submission_complete
-    case_reference: str | None = None        # review_pending
+from schemas.event import AgentEvent, IncomingEvent, InternalRequest
 
 
 # ── Dependency injection ───────────────────────────────────────────────────────
