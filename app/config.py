@@ -1,9 +1,13 @@
-﻿"""
+"""
 app/config.py
 Pydantic Settings — loads all configuration from environment variables / .env file.
 
 Access anywhere via: from app.config import get_settings; settings = get_settings()
 The @lru_cache ensures the Settings object is only constructed once per process.
+
+NOTE (v2 architecture): This service is internal-only. CORS, rate-limiting, auth,
+and image intake are handled by ShelterAppUiBackend. This service validates
+requests via a shared API key (SHELTER_BACKEND_API_KEY).
 """
 
 from __future__ import annotations
@@ -51,19 +55,18 @@ class Settings(BaseSettings):
     max_candidate_pool: int = 50
     max_image_candidates: int = 20
 
-    # ── API Security ──────────────────────────────────────────────────────────
-    secret_key: str = ""
+    # ── Internal Auth (shared secret with ShelterAppUiBackend) ─────────────────
+    # All public auth, CORS, and rate-limiting live in ShelterAppUiBackend.
+    # This service only validates the X-Internal-Key header.
+    shelter_backend_api_key: str = "changeme-dev-secret"
 
-    # ── CORS ──────────────────────────────────────────────────────────────────
-    cors_origins: list[str] = ["http://localhost:3000"]
+    # ── Internal Server ───────────────────────────────────────────────────────
+    internal_host: str = "0.0.0.0"
+    internal_port: int = 8000
 
     # ── MCP Transport ─────────────────────────────────────────────────────────
     mcp_transport: str = "sse"       # "sse" | "stdio"
     mcp_server_url: str = "http://localhost:9000/sse"
-
-    # ── Rate Limiting ─────────────────────────────────────────────────────────
-    rate_limit_requests_per_minute: int = 30
-    rate_limit_window_seconds: int = 60
 
     @field_validator("llm_provider")
     @classmethod
@@ -88,6 +91,17 @@ class Settings(BaseSettings):
         if v.lower() not in allowed:
             raise ValueError(f"mcp_transport must be one of {allowed}, got: {v!r}")
         return v.lower()
+
+    @field_validator("shelter_backend_api_key")
+    @classmethod
+    def validate_api_key_not_empty(cls, v: str) -> str:
+        if not v or v == "changeme-dev-secret":
+            import logging
+            logging.getLogger(__name__).warning(
+                "SHELTER_BACKEND_API_KEY is using the default dev value. "
+                "Set a strong random value in production."
+            )
+        return v
 
 
 @lru_cache(maxsize=1)

@@ -1,12 +1,19 @@
-﻿"""
+"""
 app/main.py
 FastAPI application factory for the Wayfind agent backend.
 
+NOTE (v2 architecture): This is an INTERNAL service.
+  - No CORS (the browser never calls this service directly)
+  - No public auth (handled by ShelterAppUiBackend)
+  - Requests are authenticated via X-Internal-Key header (shared secret)
+  - Only ShelterAppUiBackend should be able to reach this service
+
 Responsibilities:
   - Create the FastAPI app instance
-  - Register CORS middleware (reads CORS_ORIGINS from settings)
+  - Register internal auth middleware (X-Internal-Key validation)
   - Register global exception handlers (never expose stack traces)
-  - Mount the /api router
+  - Mount the /internal router
+  - Expose /health endpoint (exempt from auth, for container health checks)
   - Manage application lifespan:
       startup  → initialise session store, warm up MCP client
       shutdown → close session store, close MCP client
@@ -22,7 +29,6 @@ from contextlib import asynccontextmanager
 from typing import AsyncGenerator
 
 from fastapi import FastAPI, Request, status
-from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from app.config import get_settings
@@ -63,7 +69,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     # ── MCP Client (wired in Phase 6) ─────────────────────────────────────────
     app.state.mcp_client = None
 
-    logger.info("Wayfind agent backend started and ready")
+    logger.info("Wayfind agent backend started (internal-only mode)")
     yield
 
     # ── Shutdown ───────────────────────────────────────────────────────────────
@@ -89,42 +95,73 @@ def create_app() -> FastAPI:
     settings = get_settings()
 
     app = FastAPI(
-        title="Wayfind Agent API",
+        title="Wayfind Internal Agent API",
         description=(
-            "Prompt-first backend for missing children, found children, "
-            "and shelter access. Powered by LangGraph + FastMCP."
+            "Internal agent backend for Wayfind. "
+            "Accepts events from ShelterAppUiBackend, runs LangGraph, "
+            "and returns structured agent events. "
+            "NOT publicly accessible — secured by X-Internal-Key header."
         ),
-        version="0.1.0",
-        # Disable auto-generated docs in production if desired
+        version="0.2.0",
         docs_url="/docs",
         redoc_url="/redoc",
         lifespan=lifespan,
     )
 
-    # ── CORS ───────────────────────────────────────────────────────────────────
-    app.add_middleware(
-        CORSMiddleware,
-        allow_origins=settings.cors_origins,
-        allow_credentials=True,
-        allow_methods=["POST", "GET", "OPTIONS"],
-        allow_headers=["Content-Type", "X-Session-ID"],
-        expose_headers=["X-Session-ID"],
-    )
+    # ── Internal auth middleware ───────────────────────────────────────────────
+    _register_internal_auth_middleware(app, settings)
 
     # ── Exception handlers ─────────────────────────────────────────────────────
     _register_exception_handlers(app)
 
     # ── Routers ────────────────────────────────────────────────────────────────
-    app.include_router(agent_router, prefix="/api")
+    app.include_router(agent_router, prefix="/internal")
 
     return app
+
+
+def _register_internal_auth_middleware(app: FastAPI, settings) -> None:
+    """Register middleware that validates the X-Internal-Key shared secret.
+
+    Every request EXCEPT /health must carry:
+        X-Internal-Key: <SHELTER_BACKEND_API_KEY>
+
+    Requests with a missing or wrong key are rejected with HTTP 403.
+    The key is compared using a constant-time check to resist timing attacks.
+    """
+    import hmac
+
+    @app.middleware("http")
+    async def internal_key_middleware(request: Request, call_next):
+        # Health endpoint is always exempt — needed for Docker/k8s health checks
+        if request.url.path == "/health":
+            return await call_next(request)
+
+        provided_key = request.headers.get("X-Internal-Key", "")
+        expected_key = settings.shelter_backend_api_key
+
+        # Constant-time comparison to resist timing attacks
+        if not hmac.compare_digest(
+            provided_key.encode("utf-8"),
+            expected_key.encode("utf-8"),
+        ):
+            logger.warning(
+                "Rejected request to %s — invalid or missing X-Internal-Key",
+                request.url.path,
+            )
+            return JSONResponse(
+                status_code=status.HTTP_403_FORBIDDEN,
+                content={"message": "Forbidden."},
+            )
+
+        return await call_next(request)
 
 
 def _register_exception_handlers(app: FastAPI) -> None:
     """Register global exception handlers.
 
     CRITICAL: Never return stack traces, internal error messages, or
-    infrastructure details to the client.  All unhandled exceptions
+    infrastructure details to the caller.  All unhandled exceptions
     return the same generic JSON body.
     """
 
@@ -155,5 +192,14 @@ def _register_exception_handlers(app: FastAPI) -> None:
         )
 
 
+# ── Health endpoint (auth-exempt) ──────────────────────────────────────────────
+
+def _add_health_route(app: FastAPI) -> None:
+    @app.get("/health", include_in_schema=False)
+    async def health() -> dict:
+        return {"status": "ok", "service": "wayfind-agent"}
+
+
 # ── Module-level app instance (used by uvicorn) ────────────────────────────────
 app = create_app()
+_add_health_route(app)
