@@ -46,7 +46,6 @@ Phase 5 status: STUB with correct evidence package structure.
 from __future__ import annotations
 
 import logging
-import uuid
 from typing import Any
 
 from agent.state import WayfindState
@@ -97,19 +96,19 @@ async def human_review(state: WayfindState) -> dict:
         session_id=state.get("session_id", ""),
     )
 
-    # ── Phase 9+: wire real review_service ────────────────────────────────────
-    # from services.review_service import get_review_service
-    # review_service = get_review_service()
-    # is_priority = (confidence_tier == ConfidenceTier.HIGH)
-    # submission = await review_service.submit(
-    #     evidence_package=evidence_package,
-    #     priority=is_priority,
-    # )
-    # case_reference = submission.case_reference
+    # ── Phase 9: wire review_service ──────────────────────────────────────────
+    from services.review_service import get_review_service
 
-    # ── Phase 5 stub ──────────────────────────────────────────────────────────
-    session_prefix = (state.get("session_id") or "UNKNOWN")[:8].upper()
-    case_reference = f"WF-{session_prefix}-{uuid.uuid4().hex[:4].upper()}"
+    review_service = get_review_service()
+    is_priority = (confidence_tier == ConfidenceTier.HIGH)
+    submission = await review_service.submit(
+        candidate_case_ids=candidate_ids,
+        evidence=match_evidence or MatchEvidence(candidate_case_id=""),
+        session_id=state.get("session_id", ""),
+        priority=is_priority,
+        evidence_package=evidence_package,
+    )
+    case_reference = submission.case_reference
 
     logger.info(
         "Session %s: human_review submitted — tier=%s case_reference=%s evidence_factors=%d",

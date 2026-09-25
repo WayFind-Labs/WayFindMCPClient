@@ -873,7 +873,7 @@ async def get_case_status(
 
 ---
 
-## Phase 9 — Service Clients
+## Phase 9 — Service Clients ✅ COMPLETE
 
 Each client is an async httpx stub. They define the interface contract without real backend implementations.
 
