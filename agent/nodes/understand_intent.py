@@ -79,9 +79,13 @@ async def understand_intent(state: WayfindState) -> dict:
     # Heuristic keyword matching — intentionally simple, will be replaced by LLM.
     prompt_lower = state.get("user_prompt", "").lower()
     history = state.get("conversation_history", [])
-    all_text = prompt_lower + " ".join(
-        m.get("content", "").lower() for m in history if m.get("role") == "user"
-    )
+    history_user_texts: list[str] = []
+    for m in history:
+        content = getattr(m, "content", None) if not isinstance(m, dict) else m.get("content")
+        role = getattr(m, "type", None) if not isinstance(m, dict) else m.get("role")
+        if (role in ("user", "human") or role is None) and content:
+            history_user_texts.append(str(content).lower())
+    all_text = prompt_lower + " " + " ".join(history_user_texts)
 
     # Detect case reference for CASE_STATUS
     case_match = _CASE_REF_PATTERN.search(state.get("user_prompt", ""))

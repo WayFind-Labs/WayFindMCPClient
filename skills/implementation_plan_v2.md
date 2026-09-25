@@ -1114,7 +1114,7 @@ async def run_agent(state: WayfindState) -> WayfindState:
 
 ---
 
-## Phase 12 — Follow-Up Loop Integration
+## Phase 12 — Follow-Up Loop Integration ✅ COMPLETE
 
 The follow-up loop is the core multi-turn interaction. State is preserved across turns
 by the `AgentSessionStore` (keyed by `session_id` passed from `ShelterAppUiBackend`).
@@ -1263,8 +1263,8 @@ Never exposes stack traces, internal errors, or infrastructure details.
 | 9 | Service clients | ✅ COMPLETE | Async httpx stubs implemented & tested |
 | 10 | Config files | ✅ COMPLETE | `config/evidence_weights.yaml` and `config/static_guidance.yaml` |
 | 11 | LangGraph graph | ✅ COMPLETE | `agent/graph.py` + `runner.py` compiled & tested |
-| 12 | Follow-up loop | **NEXT** | Multi-turn integration; session store keyed by `session_id` |
-| 13 | Security/media | — | Internal auth middleware only; media in ShelterAppUiBackend |
+| 12 | Follow-up loop | ✅ COMPLETE | Multi-turn integration, form response & session store tested |
+| 13 | Security/media | **NEXT** | Internal auth middleware only; media in ShelterAppUiBackend |
 | 14 | Failure handling | — | Per-node; errors go into `agent_events` |
 | 15 | Tests | — | Add `test_internal_api.py` for v2 endpoint |
 

@@ -101,7 +101,12 @@ class AgentEvent(BaseModel):
 
 def get_session_store(request: Request) -> SessionStore:
     """Retrieve the session store attached to app.state at startup."""
-    return request.app.state.session_store  # type: ignore[no-any-return]
+    store = getattr(request.app.state, "session_store", None)
+    if store is None:
+        from app.session import create_session_store
+        store = create_session_store("memory")
+        request.app.state.session_store = store
+    return store
 
 
 # ── Route ──────────────────────────────────────────────────────────────────────
@@ -127,7 +132,7 @@ async def handle_event(
     Steps:
       1. Load existing WayfindState for session_id (or create fresh state)
       2. Merge incoming event into state
-      3. Run LangGraph graph  ← wired in Phase 11
+      3. Run LangGraph graph
       4. Collect agent_events from resulting state
       5. Save updated state to session store
       6. Return list[AgentEvent]
@@ -148,23 +153,14 @@ async def handle_event(
     state = _merge_event(state, event)
 
     # ── 3. Run LangGraph graph ─────────────────────────────────────────────────
-    # NOTE: Graph runner is wired in Phase 11.
-    # Until then, return a placeholder so the endpoint is testable end-to-end.
     try:
         graph_runner = getattr(request.app.state, "graph_runner", None)
-        if graph_runner is not None:
-            state = await graph_runner(state)
-        else:
-            # Phase 3 placeholder — replaced once agent/ is wired up (Phase 11)
-            state["agent_events"] = [
-                {
-                    "type": "assistant_message",
-                    "content": (
-                        "Agent graph not yet initialised. "
-                        "This message will be replaced in Phase 11."
-                    ),
-                }
-            ]
+        if graph_runner is None:
+            from agent.runner import run_agent
+            graph_runner = run_agent
+            request.app.state.graph_runner = graph_runner
+
+        state = await graph_runner(state)
     except Exception:
         logger.exception("LangGraph execution error for session %s", session_id)
         # Persist whatever partial state we have so the session isn't lost

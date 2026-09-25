@@ -29,6 +29,7 @@ from __future__ import annotations
 
 import logging
 
+from agent.dependencies import get_llm
 from agent.state import Intent, WayfindState
 from schemas.child import ChildSearchCriteria, FoundChildReport
 
@@ -49,7 +50,7 @@ _FIELD_LABELS: dict[str, str] = {
 }
 
 
-def check_completeness(state: WayfindState) -> dict:
+async def check_completeness(state: WayfindState) -> dict:
     """Determine which required fields are still missing and build a follow-up question."""
     intent = state.get("intent")
     missing: list[str] = []
@@ -75,7 +76,21 @@ def check_completeness(state: WayfindState) -> dict:
 
     # Limit to max 2 fields per follow-up turn to avoid overwhelming the user
     priority_missing = missing[:2]
-    question = _build_followup_question(priority_missing, intent)
+
+    # Try LLM-generated natural language follow-up question
+    question: str | None = None
+    llm = get_llm()
+    if llm is not None:
+        try:
+            question = await llm.generate_followup_question(
+                missing_fields=priority_missing,
+                context=state.get("conversation_history", []),
+            )
+        except Exception as exc:
+            logger.warning("LLM generate_followup_question failed, using template: %s", exc)
+
+    if not question:
+        question = _build_followup_question(priority_missing, intent)
 
     logger.info(
         "Session %s: missing=%s → followup generated",

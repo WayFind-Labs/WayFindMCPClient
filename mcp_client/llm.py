@@ -221,7 +221,13 @@ class WayfindLLM:
                 structured_llm = self._llm.with_structured_output(IntentResult)
                 messages = [{"role": "system", "content": system_prompt}]
                 for msg in conversation_history[-4:]:
-                    messages.append({"role": msg.get("role", "user"), "content": msg.get("content", "")})
+                    content = getattr(msg, "content", "") if not isinstance(msg, dict) else msg.get("content", "")
+                    role = getattr(msg, "type", "user") if not isinstance(msg, dict) else msg.get("role", "user")
+                    if role == "human":
+                        role = "user"
+                    elif role == "ai":
+                        role = "assistant"
+                    messages.append({"role": role, "content": str(content)})
                 messages.append({"role": "user", "content": prompt})
 
                 result: IntentResult = await structured_llm.ainvoke(messages)
@@ -234,14 +240,18 @@ class WayfindLLM:
 
     def _heuristic_extract_intent(
         self,
-        conversation_history: list[dict],
+        conversation_history: list[Any],
         prompt: str,
     ) -> IntentResult:
         """Heuristic intent classifier fallback."""
         text_lower = prompt.lower()
-        all_text = text_lower + " " + " ".join(
-            m.get("content", "").lower() for m in conversation_history if m.get("role") == "user"
-        )
+        history_texts: list[str] = []
+        for m in conversation_history:
+            content = getattr(m, "content", None) if not isinstance(m, dict) else m.get("content")
+            role = getattr(m, "type", None) if not isinstance(m, dict) else m.get("role")
+            if (role in ("user", "human") or role is None) and content:
+                history_texts.append(str(content).lower())
+        all_text = text_lower + " " + " ".join(history_texts)
 
         case_match = _CASE_REF_REGEX.search(prompt)
         if case_match:
