@@ -1,0 +1,17 @@
+# Configurable matching thresholds — do NOT hardcode these in Python
+# Calibrate against verified historical cases
+
+weights:
+  metadata:         0.50
+  image_similarity: 0.35
+  geographic:       0.10
+  temporal:         0.05
+
+tiers:
+  high_threshold:      0.75   # above this -> HIGH tier (human review)
+  uncertain_threshold: 0.45   # above this -> UNCERTAIN tier (human review)
+  # below uncertain_threshold -> LOW (no match response)
+
+candidate_pool:
+  max_metadata_results: 50
+  max_image_candidates: 20    # only run image matching if pool <= this

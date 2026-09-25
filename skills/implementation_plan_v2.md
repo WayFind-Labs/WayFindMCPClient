@@ -948,7 +948,7 @@ class ReviewService:
 
 ---
 
-## Phase 10 — Configuration Files
+## Phase 10 — Configuration Files ✅ COMPLETE
 
 ### `config/evidence_weights.yaml`
 
@@ -1257,12 +1257,12 @@ Never exposes stack traces, internal errors, or infrastructure details.
 | 3 | FastAPI entry point | ✅ COMPLETE | Internal event endpoint live; internal auth middleware; `/health` added |
 | 4 | LangGraph state | ✅ COMPLETE | `agent/state.py` — `WayfindState`, `Intent`, `initial_state()`, 4 router helpers |
 | 5 | LangGraph nodes | ✅ COMPLETE | 19 nodes in `agent/nodes/`; `agent/dependencies.py` for LLM/MCP injection |
-| 6 | MCP Client | **NEXT** | LLM wrapper + client — unchanged |
-| 7 | FastMCP server | — | Server registration — unchanged |
-| 8 | FastMCP tools | — | 6 tools — unchanged |
-| 9 | Service clients | — | `media_service.py` stub kept; not called from routes |
-| 10 | Config files | — | YAML thresholds + guidance — unchanged |
-| 11 | LangGraph graph | — | `agent/graph.py` + `runner.py` — unchanged |
+| 6 | MCP Client | ✅ COMPLETE | LLM wrapper + client implemented & tested |
+| 7 | FastMCP server | ✅ COMPLETE | Server registration implemented & tested |
+| 8 | FastMCP tools | ✅ COMPLETE | 6 tools implemented & tested |
+| 9 | Service clients | ✅ COMPLETE | Async httpx stubs implemented & tested |
+| 10 | Config files | ✅ COMPLETE | `config/evidence_weights.yaml` and `config/static_guidance.yaml` |
+| 11 | LangGraph graph | **NEXT** | `agent/graph.py` + `runner.py` — unchanged |
 | 12 | Follow-up loop | — | Multi-turn integration; session store keyed by `session_id` |
 | 13 | Security/media | — | Internal auth middleware only; media in ShelterAppUiBackend |
 | 14 | Failure handling | — | Per-node; errors go into `agent_events` |
