@@ -1211,7 +1211,7 @@ Never exposes stack traces, internal errors, or infrastructure details.
 
 ---
 
-## Phase 15 — Tests
+## Phase 15 — Tests ✅ COMPLETE
 
 ### `tests/test_schemas.py`
 - Validate all Pydantic models serialize/deserialize correctly
@@ -1266,7 +1266,7 @@ Never exposes stack traces, internal errors, or infrastructure details.
 | 12 | Follow-up loop | ✅ COMPLETE | Multi-turn integration, form response & session store tested |
 | 13 | Security/media | ✅ COMPLETE | `X-Internal-Key` middleware, media_id validation & response isolation tested |
 | 14 | Failure handling | ✅ COMPLETE | Per-node failure handling, graceful degradation & error isolation tested |
-| 15 | Tests | **NEXT** | Consolidated test suite including schemas, nodes, tools & internal API |
+| 15 | Tests | ✅ COMPLETE | 103 tests passing across schemas, nodes, tools, graph & internal API |
 
 ---
 
