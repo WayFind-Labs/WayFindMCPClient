@@ -1178,7 +1178,7 @@ In v2, the security surface of this service is drastically reduced because
 
 ---
 
-## Phase 14 — Error Handling & Failure States
+## Phase 14 — Error Handling & Failure States ✅ COMPLETE
 
 Each node handles its own failures:
 
@@ -1265,8 +1265,8 @@ Never exposes stack traces, internal errors, or infrastructure details.
 | 11 | LangGraph graph | ✅ COMPLETE | `agent/graph.py` + `runner.py` compiled & tested |
 | 12 | Follow-up loop | ✅ COMPLETE | Multi-turn integration, form response & session store tested |
 | 13 | Security/media | ✅ COMPLETE | `X-Internal-Key` middleware, media_id validation & response isolation tested |
-| 14 | Failure handling | **NEXT** | Per-node failure handling & graceful degradation |
-| 15 | Tests | — | Add `test_internal_api.py` for v2 endpoint |
+| 14 | Failure handling | ✅ COMPLETE | Per-node failure handling, graceful degradation & error isolation tested |
+| 15 | Tests | **NEXT** | Consolidated test suite including schemas, nodes, tools & internal API |
 
 ---
 

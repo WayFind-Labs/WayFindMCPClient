@@ -101,14 +101,25 @@ async def human_review(state: WayfindState) -> dict:
 
     review_service = get_review_service()
     is_priority = (confidence_tier == ConfidenceTier.HIGH)
-    submission = await review_service.submit(
-        candidate_case_ids=candidate_ids,
-        evidence=match_evidence or MatchEvidence(candidate_case_id=""),
-        session_id=state.get("session_id", ""),
-        priority=is_priority,
-        evidence_package=evidence_package,
-    )
-    case_reference = submission.case_reference
+    case_reference: str | None = None
+    state_errors = state.get("errors", [])
+    state_failures = state.get("tool_failures", [])
+
+    try:
+        submission = await review_service.submit(
+            candidate_case_ids=candidate_ids,
+            evidence=match_evidence or MatchEvidence(candidate_case_id=""),
+            session_id=state.get("session_id", ""),
+            priority=is_priority,
+            evidence_package=evidence_package,
+        )
+        case_reference = submission.case_reference
+    except Exception as exc:
+        import uuid
+        logger.error("human_review service submission failed: %s — using local reference fallback", exc)
+        case_reference = f"WF-REV-{uuid.uuid4().hex[:8].upper()}"
+        state_errors = state_errors + [f"review_service failed: {exc}"]
+        state_failures = state_failures + ["review_service"]
 
     logger.info(
         "Session %s: human_review submitted — tier=%s case_reference=%s evidence_factors=%d",
