@@ -223,4 +223,3 @@ def _add_health_route(app: FastAPI) -> None:
 
 # ── Module-level app instance (used by uvicorn) ────────────────────────────────
 app = create_app()
-_add_health_route(app)

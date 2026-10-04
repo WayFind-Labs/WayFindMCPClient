@@ -66,7 +66,7 @@ async def safety_guidance(state: WayfindState) -> dict:
                 query=state.get("user_prompt", "found a child"),
                 topic="found_child",
             )
-            guidance_text = result.guidance_text
+            guidance_text = result.guidance
         except Exception as exc:
             logger.warning("safety_guidance MCP call failed, using static: %s", exc)
 
