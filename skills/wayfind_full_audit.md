@@ -307,20 +307,21 @@ No endpoint currently exists to handle Form 1 (pre-registration of safe children
 
 ---
 
-### PRIORITY 3 (RED) — InsightFace Biometric Vision Service
+### PRIORITY 3 — Biometric Vision Microservice (Standalone Service — To Be Added Later)
 
-The [`image_match_candidates`](file:///e:/React/Shelter/WayFindMCPClient/mcp_server/tools/image_match_candidates.py) MCP tool calls [`ImageBackendClient.compare()`](file:///e:/React/Shelter/WayFindMCPClient/services/image_backend_client.py#L45) which calls `POST /api/images/compare`. **This endpoint does not exist.**
+> [!NOTE]
+> **Status:** The Biometric Vision service is intentionally decoupled and will be built as a separate microservice later. The core application logic and agent pipeline communicate via [`ImageBackendClient`](file:///e:/React/Shelter/WayFindMCPClient/services/image_backend_client.py) with graceful mock fallback.
 
-**What to build:**
-- A Python FastAPI service running InsightFace ArcFace
-- Input: `{"media_id": "...", "candidate_case_ids": ["WF-CASE-XXX", ...]}`
-- Process:
-  1. Load query image bytes from S3 by `media_id`
-  2. Compute 512-D ArcFace embedding for query image
-  3. Fetch pre-stored embeddings for each `candidate_case_id` from DB
-  4. Compute cosine similarity for each pair
-- Output: `{"matches": [{"candidate_case_id": "...", "similarity_score": 0.88, "model_version": "arcface-r100", ...}]}`
-- **Critical guardrail:** ONLY compare against the passed-in candidate IDs — no full database scan ever
+**Future Biometric Microservice Scope:**
+The service will be a dedicated FastAPI / PyTorch / InsightFace service with 2 main functions:
+1. **`POST /api/biometrics/embed`:** Image $\rightarrow$ 512-D ArcFace feature vector representation.
+2. **`POST /api/biometrics/match`:** Query vector $\rightarrow$ cosine similarity against pre-filtered candidate vectors.
+
+**Critical Architectural Guardrails & Testing Setup:**
+- **Significance Score Gating:** Biometric comparison is **never invoked blindly**. In [`evaluate_candidates`](file:///e:/React/Shelter/WayFindMCPClient/agent/nodes/evaluate_candidates.py), image matching is warranted ONLY if `significance_score >= 0.60` (strong demographic/metadata match).
+- **Pure Deterministic Evidence Scoring (Zero LLM):** [`evaluate_evidence`](file:///e:/React/Shelter/WayFindMCPClient/agent/nodes/evaluate_evidence.py) calculates normalized composite scores from metadata, temporal, and geographic factors without LLM dependency.
+- **Strict Candidate Scoping:** Comparison is strictly restricted to top 3–5 shortlisted candidates — **no full database scans ever**.
+- **Wiring Guide:** When the microservice is deployed on port 8003, simply set `IMAGE_BACKEND_URL=http://localhost:8003` in `WayFindMCPClient/.env`. No graph or frontend modifications required.
 
 ---
 

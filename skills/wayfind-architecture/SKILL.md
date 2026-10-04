@@ -22,8 +22,11 @@ description: >
 5. **Empathetic Crisis AI Companion (MCP Client):** Conversational AI layer providing trauma-informed de-escalation, physical search protocols, and safe custodian guidance.
 6. **Two-Phase Progressive Alerts & Masked Communication Gateway:**
    - *Phase 1:* Immediate acknowledgment of candidate verification.
-   - *Phase 2:* Dispatches verified shelter directions or opens masked VoIP/SMS proxy bridge between finder and guardian.
-7. **Cascaded Vision AI:** Biometric face matching runs only on top 3–5 candidate records filtered by the deterministic engine.
+7. **Decoupled Cascaded Vision AI (Separate Service — To Be Added Later):**
+   - Biometric face matching runs only on top 3–5 candidate records filtered by the deterministic engine.
+   - **Significance Gating:** Triggered ONLY when metadata `significance_score >= 0.60`.
+   - **Standalone Microservice Contract:** (1) `POST /api/biometrics/embed` and (2) `POST /api/biometrics/match`. Decoupled via `ImageBackendClient`.
+   - **Deterministic Scoring:** Composite evidence evaluation is pure mathematical scoring with zero LLM dependency.
 
 ---
 
@@ -59,10 +62,12 @@ description: >
     │   • Found Child Cases       │   └───────────────────────────────────┘
     └─────────────────────────────┘
                    │
-                   ▼ (Top 3-5 Shortlisted Candidates Only)
+                   ▼ (Top 3-5 Shortlisted Candidates Only; If Significance >= 0.60)
 ┌─────────────────────────────────────────────────────────────────────────┐
-│              Biometric Vision AI Service (WayFindMCPClient)             │
-│   • InsightFace 512-D Biometric Embedding Comparison                    │
+│        Standalone Biometric Vision Microservice (Port 8003 — Later)     │
+│   • POST /api/biometrics/embed (Image -> 512-D ArcFace Vector)          │
+│   • POST /api/biometrics/match (Cosine Similarity vs Candidate Vectors) │
+└─────────────────────────────────────────────────────────────────────────┘
 └─────────────────────────────────────────────────────────────────────────┘
 ```
 

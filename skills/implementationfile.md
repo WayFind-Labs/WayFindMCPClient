@@ -59,42 +59,42 @@
 
 ---
 
-### Phase 1: Interactive Browser Flow & Agent Handshake (Current Focus)
+### Phase 1: Interactive Browser Flow & Agent Handshake (✅ COMPLETED)
 
-- [ ] **Agent Core Bug Fixes:**
-  - Fix [`agent/nodes/safety_guidance.py`](file:///e:/React/Shelter/WayFindMCPClient/agent/nodes/safety_guidance.py): change `result.guidance_text` to `result.guidance`.
-  - Fix [`app/main.py`](file:///e:/React/Shelter/WayFindMCPClient/app/main.py): remove duplicate `_add_health_route(app)` call at module level.
-- [ ] **Backend Event Bridge (`ShelterAppUiBackend`):**
-  - Update `MessageRequest` schema to support optional `form_data: dict | None`.
-  - Route `user_form_response` event to `agent_client.send_event()`.
-- [ ] **Frontend Handshake (`ShelterApp ui`):**
-  - Add `sendFormResponse(sessionId, formData)` in `src/lib/api/client.ts`.
-  - Update `ChatInterface` to render:
-    - Dynamic inline form on `request_information` event with per-field "Unknown" toggles.
-    - Inline photo upload prompt on `request_image` event.
-    - Styled reference card on `review_pending` event.
-  - Verify seamless transition from the 3 landing page scenario cards.
+- [x] **Agent Core Bug Fixes:** Fixed `result.guidance` attribute and removed duplicate health route.
+- [x] **Backend Event Bridge (`ShelterAppUiBackend`):** Handled `user_form_response` & `user_image` events.
+- [x] **Frontend Handshake (`ShelterApp ui`):** Built `InlineFormCard`, `InlineImageUploadCard`, `InlineCaseReviewCard`, and wired `sendFormResponse()`.
+- [x] **Zero Build Errors:** Verified Next.js 22 static pages build cleanly.
 
 ---
 
-### Phase 2: PostgreSQL Persistence & Child Registration
+### Phase 2: PostgreSQL Persistence & Child Registration (✅ COMPLETED)
 
-- [ ] **PostgreSQL 16 + PostGIS Setup:**
-  - Create Alembic migrations for `guardians`, `children`, `physical_attributes`, `baseline_photos`, `sos_beacons`, `found_child_cases`, `intake_photos`, `review_queue`, `audit_log`.
-- [ ] **Live Service Endpoints in Backend:**
-  - `POST /api/children/search` (temporal window + dynamic null-pruning query).
-  - `POST /api/children/found` (intake record registration).
-  - `GET /api/cases/{reference}` (public case status query).
-- [ ] **Child Pre-Registration API:**
-  - `POST /api/guardians/register-child` to register safe baseline profiles (`REGISTERED_SAFE`).
+- [x] **PostgreSQL 16 + PostGIS Setup:** Created complete DDL schema script in [`db/schema.sql`](file:///e:/React/Shelter/ShelterAppUiBackend/db/schema.sql).
+- [x] **Live Service Endpoints in Backend:** Implemented `POST /api/children/search`, `POST /api/children/found`, `GET /api/cases/{reference}`.
+- [x] **Child Pre-Registration API:** Implemented `POST /api/guardians/register-child` and `GET /api/guardians/{id}/children`.
+- [x] **Landing Page Drawer Sync:** Dynamic fetching and selection of registered children.
 
 ---
 
-### Phase 3: Biometric Vision AI & RAG Knowledge Base
+### Phase 3: Biometric Vision AI (Separate Service — To Be Done Later) & RAG Vector Base
 
-- [ ] **InsightFace Vision Service (Port 8003):**
-  - Fast FastAPI service executing ArcFace 512-D embeddings.
-  - Compares query image strictly against top 3–5 shortlisted candidate IDs (no full table scans).
+> [!NOTE]
+> **Biometric Vision Microservice Design & Future Integration:**
+> The Biometric Face Embedding & Matching service will be built as a separate standalone microservice with two primary functions:
+> 1. **Image to Vector (`POST /api/biometrics/embed`):** Computes 512-D ArcFace/InsightFace feature embedding vectors for baseline and intake photos.
+> 2. **Candidate Matching (`POST /api/biometrics/match`):** Computes cosine similarity between query embedding and pre-filtered candidate vectors.
+>
+> **Decoupled Architecture & Guardrails:**
+> - **Significance Gating:** Biometric scanning is **never called blindly or on full database scans**. It is triggered in [`evaluate_candidates`](file:///e:/React/Shelter/WayFindMCPClient/agent/nodes/evaluate_candidates.py) **only if** `significance_score >= 0.60` (strong demographic/metadata match).
+> - **Pure Deterministic Scoring (Zero LLM):** [`evaluate_evidence`](file:///e:/React/Shelter/WayFindMCPClient/agent/nodes/evaluate_evidence.py) evaluates evidence deterministically using normalized weights without LLM dependency.
+> - **Loose Coupling:** The application uses [`ImageBackendClient`](file:///e:/React/Shelter/WayFindMCPClient/services/image_backend_client.py) with graceful mock fallback when `IMAGE_BACKEND_URL` is unconfigured.
+>
+> **How to wire the future Biometric service:**
+> 1. Launch biometric service on `IMAGE_BACKEND_URL` (e.g. `http://localhost:8003`).
+> 2. Set `IMAGE_BACKEND_URL=http://localhost:8003` in `WayFindMCPClient/.env`.
+> 3. Zero changes needed to LangGraph core logic or UI.
+
 - [ ] **Qdrant Vector Database (Port 8002):**
   - Ingestion pipeline for child protection SOPs, helpline numbers (1098), and shelter directories.
   - Vector similarity query endpoint for `RagClient`.
