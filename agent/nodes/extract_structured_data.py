@@ -35,9 +35,10 @@ from typing import Any
 
 from agent.dependencies import get_llm
 from agent.state import Intent, WayfindState
-from schemas.child import AgeRange, ChildSearchCriteria, FoundChildReport
+from schemas.child import AgeRange, ChildRegistrationData, ChildSearchCriteria, FoundChildReport
 
 logger = logging.getLogger(__name__)
+
 
 
 async def extract_structured_data(state: WayfindState) -> dict:
@@ -65,8 +66,12 @@ async def extract_structured_data(state: WayfindState) -> dict:
                     form_data=state.get("last_form_data"),
                     media_reference=state.get("media_reference"),
                 )
+            elif intent == Intent.REGISTER_CHILD:
+                existing = state.get("child_registration_data")
+                reg = _to_register_data(existing)
+                reg = _heuristic_merge_register(reg, state.get("user_prompt", "").lower(), state.get("last_form_data"))
                 return {
-                    "found_child_report": result,
+                    "child_registration_data": reg,
                     "last_form_data": None,
                 }
         except Exception as exc:
@@ -83,9 +88,14 @@ async def extract_structured_data(state: WayfindState) -> dict:
     prompt = state.get("user_prompt", "").lower()
     updates: dict[str, Any] = {"last_form_data": None}
 
-    if intent == Intent.MISSING_CHILD:
-        existing = state.get("child_search_criteria") or ChildSearchCriteria(found_location="unknown")
-        # Coerce to dict for merging
+    if intent == Intent.REGISTER_CHILD:
+        existing = state.get("child_registration_data")
+        reg = _to_register_data(existing)
+        reg = _heuristic_merge_register(reg, prompt, state.get("last_form_data"))
+        updates["child_registration_data"] = reg
+
+    elif intent == Intent.MISSING_CHILD:
+        existing = state.get("child_search_criteria")
         criteria = _to_missing_criteria(existing)
         criteria = _heuristic_merge_missing(criteria, prompt, state.get("last_form_data"))
         updates["child_search_criteria"] = criteria
@@ -99,7 +109,54 @@ async def extract_structured_data(state: WayfindState) -> dict:
     return updates
 
 
+
 # ── Stub helpers ───────────────────────────────────────────────────────────────
+
+def _to_register_data(existing: ChildRegistrationData | None) -> ChildRegistrationData:
+    if existing is None:
+        return ChildRegistrationData()
+    if isinstance(existing, dict):
+        return ChildRegistrationData(**existing)
+    return existing
+
+
+def _heuristic_merge_register(
+    reg: ChildRegistrationData,
+    prompt: str,
+    form_data: dict | None,
+) -> ChildRegistrationData:
+    data = form_data or {}
+    updates: dict[str, Any] = {}
+
+    if "name" in data and data["name"]:
+        updates["name"] = str(data["name"]).strip()
+    if "gender" in data and data["gender"]:
+        updates["gender"] = str(data["gender"]).strip().lower()
+    if "city" in data and data["city"]:
+        updates["city"] = str(data["city"]).strip()
+    if "medical_notes" in data and data["medical_notes"]:
+        updates["medical_notes"] = str(data["medical_notes"]).strip()
+    if "emergency_contact" in data and data["emergency_contact"]:
+        updates["emergency_contact"] = str(data["emergency_contact"]).strip()
+    if "identifying_features" in data and data["identifying_features"]:
+        val = data["identifying_features"]
+        updates["identifying_features"] = [str(val).strip()] if isinstance(val, str) else list(val)
+
+    if "age" in data and data["age"]:
+        try:
+            updates["age"] = AgeRange(exact=int(str(data["age"]).strip()))
+        except (ValueError, TypeError):
+            pass
+
+    # Prompt hints if not already set
+    if not updates.get("gender") and not reg.gender:
+        if "girl" in prompt or "daughter" in prompt or "female" in prompt:
+            updates["gender"] = "female"
+        elif "boy" in prompt or "son" in prompt or "male" in prompt:
+            updates["gender"] = "male"
+
+    return reg.model_copy(update=updates) if updates else reg
+
 
 def _to_missing_criteria(existing: ChildSearchCriteria | None) -> ChildSearchCriteria:
     if existing is None:

@@ -39,6 +39,7 @@ class Settings(BaseSettings):
 
     # ── Downstream Service URLs ───────────────────────────────────────────────
     postgres_service_url: str = ""
+    database_url: str = ""
     rag_service_url: str = ""
     image_backend_url: str = ""
     support_service_url: str = ""

@@ -46,3 +46,13 @@ The core system must be deterministic, transparent, and safe by design. Child sa
 
 1. **Staff Approval Gate:** Matches in the `UNCERTAIN` ($0.50 \le S < 0.80$) and `HIGH` ($S \ge 0.80$) tiers require staff verification before releasing shelter desk directions or activating the masked communication bridge.
 2. **Tamper-Evident Audit Logs:** Every match calculation, profile lookup, and staff decision is logged with immutable timestamps and user IDs.
+
+---
+
+## 6. Guardrail Group 5: Development, Git Push & Context Synchronization
+
+1. **Mandatory Git Push Discipline:**
+   - After completing meaningful writing, coding, LangGraph node work, prompt refinement, or bug fixes, immediately stage, commit, and `git push` to `origin`.
+   - Commit messages must follow Conventional Commits formatting (`feat:`, `fix:`, `refactor:`, `docs:`, etc.) with clear descriptions of what was implemented.
+2. **Mandatory Context Synchronization:**
+   - Whenever work modifies, expands, or introduces changes to state schemas, intent nodes, tools, prompts, or workflows, immediately update project context files ([`skills/wayfind-guardrails/SKILL.md`](file:///e:/React/Shelter/WayFindMCPClient/skills/wayfind-guardrails/SKILL.md), [`skills/wayfind-architecture/SKILL.md`](file:///e:/React/Shelter/WayFindMCPClient/skills/wayfind-architecture/SKILL.md), [`skills/implementationfile.md`](file:///e:/React/Shelter/WayFindMCPClient/skills/implementationfile.md), and [`README.md`](file:///e:/React/Shelter/WayFindMCPClient/README.md)) to maintain complete context accuracy.

@@ -37,21 +37,17 @@ _CASE_REF_PATTERN = re.compile(r"\bWF-\d{8}-\d{4}\b", re.IGNORECASE)
 
 
 async def understand_intent(state: WayfindState) -> dict:
-    """Detect intent from the current turn's user prompt.
+    """Detect intent from the current turn's user prompt."""
+    existing_intent = state.get("intent")
+    # If an intent was already identified in a prior turn, preserve it during form fills / follow-ups
+    if existing_intent and existing_intent != Intent.UNKNOWN:
+        prompt_text = state.get("user_prompt", "").lower()
+        if state.get("last_form_data") or not any(w in prompt_text for w in ["cancel", "reset", "start over", "change topic", "exit"]):
+            logger.info("Session %s: Preserving active intent=%s", state.get("session_id"), existing_intent)
+            return {"intent": existing_intent}
 
-    Phase 6: Replace stub body with:
-        llm = get_llm()
-        result = await llm.extract_intent(
-            conversation_history=state["conversation_history"],
-            prompt=state["user_prompt"],
-        )
-        return {
-            "intent": result.intent,
-            "intent_confidence": result.confidence,
-            "case_reference": result.case_reference,
-        }
-    """
     llm = get_llm()
+
 
     if llm is not None:
         # ── Phase 6+ real implementation ──────────────────────────────────────
@@ -90,7 +86,10 @@ async def understand_intent(state: WayfindState) -> dict:
     # Detect case reference for CASE_STATUS
     case_match = _CASE_REF_PATTERN.search(state.get("user_prompt", ""))
 
-    if case_match:
+    if any(w in all_text for w in ["register my child", "register a child", "pre-register", "add my child", "register on wayfind", "child registration", "i want to register"]):
+        intent = Intent.REGISTER_CHILD
+        confidence = 0.90
+    elif case_match:
         intent = Intent.CASE_STATUS
         confidence = 0.85
     elif any(w in all_text for w in ["found", "found a child", "found a boy", "found a girl", "unaccompanied"]):

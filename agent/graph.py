@@ -28,6 +28,7 @@ from agent.nodes import (
     human_review,
     image_match,
     no_match,
+    register_child_node,
     route_by_confidence,
     route_intent,
     safety_guidance,
@@ -82,12 +83,13 @@ def build_graph() -> CompiledStateGraph:
     """
     g = StateGraph(WayfindState)
 
-    # ── 1. Register all 19 nodes ──────────────────────────────────────────────
+    # ── 1. Register all 20 nodes ──────────────────────────────────────────────
     g.add_node("understand_intent", understand_intent)
     g.add_node("extract_structured_data", extract_structured_data)
     g.add_node("check_completeness", check_completeness)
     g.add_node("ask_followup", ask_followup)
     g.add_node("route_intent", route_intent)
+    g.add_node("register_child_node", register_child_node)
     g.add_node("search_metadata", search_metadata)
     g.add_node("evaluate_candidates", evaluate_candidates)
     g.add_node("image_match", image_match)
@@ -124,6 +126,7 @@ def build_graph() -> CompiledStateGraph:
         "route_intent",
         intent_router,
         {
+            "register_child": "register_child_node",
             "missing_child": "search_metadata",
             "found_child": "found_child_extract",
             "shelter_search": "search_support_node",
@@ -132,6 +135,8 @@ def build_graph() -> CompiledStateGraph:
             "unknown": "ask_followup",
         },
     )
+    g.add_edge("register_child_node", "generate_response")
+
 
     # ── 5. Missing Child Search & Evidence Evaluation Pipeline ────────────────
     g.add_edge("search_metadata", "evaluate_candidates")

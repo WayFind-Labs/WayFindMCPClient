@@ -168,7 +168,7 @@ class WayfindLLM:
     ) -> None:
         self.provider = provider.lower()
         self.api_key = api_key or ""
-        self.model_name = model or ("gemini-2.5-flash" if self.provider == "gemini" else "gpt-4o-mini")
+        self.model_name = model or ("gemini-3.8-flash" if self.provider == "gemini" else "gpt-4o-mini")
         self._llm: Any | None = None
 
         if self.api_key:
@@ -206,8 +206,9 @@ class WayfindLLM:
         if self._llm is not None:
             try:
                 system_prompt = (
-                    "You are the intent classifier for Wayfind, a platform assisting with missing and found children.\n"
+                    "You are the intent classifier for Wayfind, a platform assisting with children welfare.\n"
                     "Classify the user message into one of these intents:\n"
+                    "- REGISTER_CHILD: Guardian is pre-registering a safe child on Wayfind for peacetime protection.\n"
                     "- MISSING_CHILD: User is reporting a missing child or searching for their lost child.\n"
                     "- FOUND_CHILD: User has found an unaccompanied/lost child and wants to report them.\n"
                     "- SHELTER_SEARCH: User is looking for authorized child shelters, NGOs, or intake facilities.\n"
@@ -253,6 +254,13 @@ class WayfindLLM:
                 history_texts.append(str(content).lower())
         all_text = text_lower + " " + " ".join(history_texts)
 
+        if any(w in all_text for w in ["register my child", "register a child", "pre-register", "add my child", "register on wayfind", "child registration", "i want to register"]):
+            return IntentResult(
+                intent=Intent.REGISTER_CHILD,
+                confidence=0.90,
+                reasoning="Child registration intent detected",
+            )
+
         case_match = _CASE_REF_REGEX.search(prompt)
         if case_match:
             return IntentResult(
@@ -275,6 +283,7 @@ class WayfindLLM:
                 confidence=0.75,
                 reasoning="Missing-child keywords detected",
             )
+
 
         if any(w in all_text for w in ["shelter", "ngo", "police station", "hospital", "where can i take", "intake centre", "safe place"]):
             return IntentResult(
@@ -571,8 +580,13 @@ class WayfindLLM:
             return "Could you provide any additional details?"
 
         field_labels = {
+            "name": "the child's full name",
             "gender": "the child's gender",
             "age": "approximately how old the child is",
+            "city": "your home city or area",
+            "identifying_features": "any distinguishing physical features or birthmarks",
+            "medical_notes": "any medical conditions or allergy notes",
+            "emergency_contact": "an emergency contact phone number",
             "last_seen_location": "where the child was last seen",
             "found_location": "where the child was found",
             "clothing": "what clothing the child was wearing",

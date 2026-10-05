@@ -25,6 +25,7 @@ from agent.nodes.get_guidance import get_guidance_node
 from agent.nodes.human_review import human_review
 from agent.nodes.image_match import image_match
 from agent.nodes.no_match import no_match
+from agent.nodes.register_child_node import register_child_node
 from agent.nodes.route_by_confidence import route_by_confidence
 from agent.nodes.route_intent import route_intent
 from agent.nodes.safety_guidance import safety_guidance
@@ -39,6 +40,7 @@ __all__ = [
     "check_completeness",
     "ask_followup",
     "route_intent",
+    "register_child_node",
     "search_metadata",
     "evaluate_candidates",
     "image_match",
@@ -54,3 +56,4 @@ __all__ = [
     "get_case_status_node",
     "generate_response",
 ]
+

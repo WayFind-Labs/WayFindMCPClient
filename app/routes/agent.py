@@ -210,6 +210,7 @@ def _initial_state(session_id: str) -> dict[str, Any]:
         "intent":                  None,
         "intent_confidence":       None,
         "child_search_criteria":   None,
+        "child_registration_data": None,
         "found_child_report":      None,
         "missing_information":     [],
         "followup_question":       None,

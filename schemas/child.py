@@ -1,4 +1,4 @@
-﻿"""
+"""
 schemas/child.py
 Data models for missing-child search criteria and found-child reports.
 
@@ -128,3 +128,28 @@ class FoundChildReport(BaseModel):
         default=None,
         description="Internal media ID from the media service. Never a raw URL or file path.",
     )
+
+
+class ChildRegistrationData(BaseModel):
+    """Data submitted when a guardian is pre-registering a safe child on Wayfind."""
+
+    name: str | None = Field(default=None, description="Full name or nickname of the child.")
+    gender: str | None = Field(
+        default=None,
+        description='Child gender. Accepted values: "male" | "female" | "other".',
+    )
+    age: AgeRange = Field(default_factory=AgeRange, description="Exact age or age range of the child.")
+    city: str | None = Field(default=None, description="Home city or residential neighborhood.")
+    identifying_features: list[str] = Field(
+        default_factory=list,
+        description="Distinguishing birthmarks, scars, or physical features.",
+    )
+    medical_notes: str | None = Field(
+        default=None,
+        description="Known medical conditions, allergies, or emergency medical info.",
+    )
+    emergency_contact: str | None = Field(
+        default=None,
+        description="Guardian phone number or primary emergency contact.",
+    )
+

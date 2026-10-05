@@ -36,17 +36,22 @@ from schemas.child import ChildSearchCriteria, FoundChildReport
 logger = logging.getLogger(__name__)
 
 # ── Minimum required fields ────────────────────────────────────────────────────
-_MISSING_CHILD_REQUIRED = {"gender", "age", "last_seen_location"}
-_FOUND_CHILD_REQUIRED   = {"found_location"}
+_REGISTER_CHILD_REQUIRED = {"name", "gender", "age"}
+_MISSING_CHILD_REQUIRED  = {"gender", "age", "last_seen_location"}
+_FOUND_CHILD_REQUIRED    = {"found_location"}
 
 # ── Human-readable labels for follow-up questions ─────────────────────────────
 _FIELD_LABELS: dict[str, str] = {
-    "gender":             "the child's gender",
-    "age":                "approximately how old the child is",
-    "last_seen_location": "where the child was last seen",
-    "found_location":     "where you found the child",
-    "clothing":           "what the child was wearing",
-    "hair_color":         "the child's hair colour",
+    "name":                 "the child's full name",
+    "gender":               "the child's gender",
+    "age":                  "approximately how old the child is",
+    "city":                 "your home city or residential area",
+    "identifying_features": "any distinguishing birthmarks or physical features",
+    "medical_notes":        "any medical conditions or allergy notes",
+    "last_seen_location":   "where the child was last seen",
+    "found_location":       "where you found the child",
+    "clothing":             "what the child was wearing",
+    "hair_color":           "the child's hair colour",
 }
 
 
@@ -55,7 +60,11 @@ async def check_completeness(state: WayfindState) -> dict:
     intent = state.get("intent")
     missing: list[str] = []
 
-    if intent == Intent.MISSING_CHILD:
+    if intent == Intent.REGISTER_CHILD:
+        reg = state.get("child_registration_data")
+        missing = _check_register_child(reg)
+
+    elif intent == Intent.MISSING_CHILD:
         criteria = state.get("child_search_criteria")
         missing = _check_missing_child(criteria)
 
@@ -70,7 +79,7 @@ async def check_completeness(state: WayfindState) -> dict:
     if not missing:
         logger.info(
             "Session %s: completeness OK for intent=%s",
-            state.get("session_id"), intent.value if intent else "none",
+            state.get("session_id"), intent.value if hasattr(intent, "value") else (str(intent) if intent else "none"),
         )
         return {"missing_information": [], "followup_question": None}
 
@@ -104,6 +113,34 @@ async def check_completeness(state: WayfindState) -> dict:
 
 
 # ── Completeness checkers ──────────────────────────────────────────────────────
+
+def _check_register_child(reg: Any) -> list[str]:
+    """Return list of missing required field names for peacetime child pre-registration."""
+    if reg is None:
+        return ["name", "gender", "age", "city", "identifying_features"]
+
+    if isinstance(reg, dict):
+        has_name = bool(reg.get("name"))
+        has_gender = bool(reg.get("gender"))
+        age = reg.get("age") or {}
+        has_age = bool(age.get("exact") or age.get("min") or age.get("max")) if isinstance(age, dict) else bool(reg.get("age"))
+    else:
+        has_name = bool(getattr(reg, "name", None))
+        has_gender = bool(getattr(reg, "gender", None))
+        age_obj = getattr(reg, "age", None)
+        has_age = bool(
+            age_obj and (age_obj.exact is not None or age_obj.min is not None or age_obj.max is not None)
+        )
+
+    missing = []
+    if not has_name:
+        missing.append("name")
+    if not has_gender:
+        missing.append("gender")
+    if not has_age:
+        missing.append("age")
+    return missing
+
 
 def _check_missing_child(criteria: ChildSearchCriteria | dict | None) -> list[str]:
     """Return list of missing required field names for a MISSING_CHILD search."""

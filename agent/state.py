@@ -24,7 +24,7 @@ from typing import Annotated, Any, TypedDict
 
 from langgraph.graph import add_messages
 
-from schemas.child import ChildSearchCriteria, FoundChildReport
+from schemas.child import ChildRegistrationData, ChildSearchCriteria, FoundChildReport
 from schemas.evidence import ConfidenceTier, MatchEvidence
 from schemas.image import ImageMatch
 from schemas.location import Location
@@ -34,6 +34,7 @@ from schemas.location import Location
 class Intent(StrEnum):
     """Possible high-level intents detected from the user's message.
 
+    REGISTER_CHILD — guardian is pre-registering a safe child on Wayfind
     MISSING_CHILD  — user is searching for a child they reported missing
     FOUND_CHILD    — user has found an unaccompanied child
     SHELTER_SEARCH — user wants nearby shelters or support organisations
@@ -42,12 +43,14 @@ class Intent(StrEnum):
     UNKNOWN        — intent could not be determined; agent will ask for clarification
     """
 
+    REGISTER_CHILD = "register_child"
     MISSING_CHILD  = "missing_child"
     FOUND_CHILD    = "found_child"
     SHELTER_SEARCH = "shelter_search"
     GUIDANCE       = "guidance"
     CASE_STATUS    = "case_status"
     UNKNOWN        = "unknown"
+
 
 
 # ── State ─────────────────────────────────────────────────────────────────────
@@ -105,7 +108,11 @@ class WayfindState(TypedDict):
     Merged across turns — never reset mid-conversation.
     """
 
+    child_registration_data: ChildRegistrationData | None
+    """Incrementally built registration data for REGISTER_CHILD intent."""
+
     found_child_report: FoundChildReport | None
+
     """Incrementally built report for FOUND_CHILD intent.
     ``media_reference`` inside this model is set from ``state.media_reference``.
     """
@@ -238,6 +245,7 @@ def initial_state(session_id: str) -> WayfindState:
         intent                 = None,
         intent_confidence      = None,
         child_search_criteria  = None,
+        child_registration_data = None,
         found_child_report     = None,
         missing_information    = [],
         followup_question      = None,
