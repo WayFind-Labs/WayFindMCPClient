@@ -1,0 +1,29 @@
+name: Feature request
+description: Suggest an improvement or new capability.
+title: "[Feature]: "
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: "Please do not include real child/family data, case details, photos, credentials, or other personal information."
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem or need
+      description: What user need would this address?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed solution
+      description: Describe your idea and any alternatives considered.
+    validations:
+      required: true
+  - type: textarea
+    id: safety
+    attributes:
+      label: Safety, privacy, and accessibility considerations
+      description: How could this affect people using the project?
+    validations:
+      required: false

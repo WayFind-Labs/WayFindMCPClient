@@ -1,0 +1,39 @@
+name: Bug report
+description: Report a reproducible problem (do not include real case or personal data).
+ title: "[Bug]: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: "Do not include real child/family information, case details, photos, credentials, or other personal data. Use synthetic examples only."
+  - type: textarea
+    id: summary
+    attributes:
+      label: What happened?
+      description: A concise description of the problem.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Steps to reproduce
+      description: Include only synthetic or sanitized data.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Version or commit
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment and logs
+      description: Remove secrets and personal information before posting.
+    validations:
+      required: false
