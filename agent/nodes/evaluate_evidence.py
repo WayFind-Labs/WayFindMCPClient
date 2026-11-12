@@ -107,10 +107,17 @@ def evaluate_evidence(state: WayfindState) -> dict:
             image_score = m.similarity_score if hasattr(m, "similarity_score") else m.get("similarity_score", 0.0)
             break
 
-    # Metadata score: in Phase 5 we have no real score from the DB.
-    # When Phase 9 wires the postgres client, Candidate.metadata_match_score
-    # will be available. For now use a placeholder.
-    metadata_score = 0.60   # placeholder — replaced when postgres_client returns Candidate objects
+    # Metadata score: check if candidate metadata_match_score is available in state, else default safely
+    candidates = state.get("candidates", []) or []
+    candidate_metadata_score = None
+    for cand in candidates:
+        cid = getattr(cand, "case_id", None) or (cand.get("case_id") if isinstance(cand, dict) else None)
+        if cid == top_case_id:
+            candidate_metadata_score = getattr(cand, "metadata_match_score", None) or (
+                cand.get("metadata_match_score") if isinstance(cand, dict) else None
+            )
+            break
+    metadata_score = float(candidate_metadata_score) if candidate_metadata_score is not None else 0.60
 
     # Geographic and temporal scores: placeholder 0.0 until geo/date parsing is added.
     geographic_score = None

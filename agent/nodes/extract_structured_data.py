@@ -66,6 +66,10 @@ async def extract_structured_data(state: WayfindState) -> dict:
                     form_data=state.get("last_form_data"),
                     media_reference=state.get("media_reference"),
                 )
+                return {
+                    "found_child_report": result,
+                    "last_form_data": None,
+                }
             elif intent == Intent.REGISTER_CHILD:
                 existing = state.get("child_registration_data")
                 reg = _to_register_data(existing)

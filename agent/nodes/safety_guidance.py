@@ -32,11 +32,11 @@ from agent.state import WayfindState
 logger = logging.getLogger(__name__)
 
 _STATIC_GUIDANCE = (
-    "While we process your report, please:\n"
-    "• Do not leave the child unattended.\n"
-    "• Stay in a safe, public location.\n"
-    "• Contact local police if you have not already done so.\n"
-    "• Do not share the child's photo or details on social media."
+    "⚠️ Immediate Safety & Child Protection Guidance:\n"
+    "• DO NOT post photos or location details on WhatsApp groups, Facebook, or social media.\n"
+    "• Stay with the child in a well-lit, open public location (e.g. security booth, transit desk).\n"
+    "• Contact the Child Helpline (1098) or emergency police immediately.\n"
+    "• Wayfind is securing this intake report to coordinate safely with authorized child welfare officers."
 )
 
 

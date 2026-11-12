@@ -1,13 +1,14 @@
 found_child:
   guidance: |
-    If you have found a child alone, do not leave them unattended.
-    Contact local police immediately at your local emergency number.
-    Stay with the child in a safe, public location until authorities arrive.
-    Do not share the child's image or details on social media.
+    If you have found an unaccompanied child on the street:
+    • DO NOT post photos of the child on WhatsApp, Facebook, or public social media. This puts the child's safety at risk.
+    • Stay with the child in a well-lit, public location (such as near a station security post or crowded shop). Do not take the child into private unmonitored spaces.
+    • Contact the Child Helpline (1098) or local police immediately.
+    • We will record the child's intake details safely and issue an official case reference for authorized child protection staff.
   next_steps:
-    - Contact local police
-    - Visit nearest authorized shelter
-    - Submit a report through Wayfind
+    - Dial Child Helpline 1098 or local police
+    - Remain in a public, safe, and visible location
+    - Provide intake details to receive a Wayfind Case Reference
 
 missing_child:
   no_match_message: |
