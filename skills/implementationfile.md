@@ -1,28 +1,26 @@
 # Wayfind — Master Implementation Plan
 
-**Date:** 2026-10-04  
-**Author:** Antigravity  
+**Date:** 2026-11-13  
+**Status:** MVP Pivot — Laser-focused on **"I Found a Child: Safe Guidance & Ethical Intake"**  
+**LLM Engine:** Groq (`llama-3.3-70b-versatile`) via `langchain-groq`  
 **Workspaces:** `ShelterApp ui` (Next.js 14), `ShelterAppUiBackend` (FastAPI), `WayFindMCPClient` (FastAPI + LangGraph + FastMCP)
 
 ---
 
-## 🧭 Architecture & Design Philosophy
+## 🎯 MVP Pivot: The "Found Child" Crisis Guidance Pitch
 
-1. **Single Landing Page with 3 Scenario Cards:**
-   - **🟢 I want to register my child on Wayfind** → Child pre-registration flow (`REGISTERED_SAFE`).
-   - **🔴 I am looking for my lost child** → If registered children exist, lists them by name with option to select or add new; if none exist, flows straight to search/reporting.
-   - **🔵 I just found a lost child** → Immediate safety guidance + report intake.
-2. **Pre-Seeded Conversational AI Intake:**
-   - Selecting a scenario transitions to the chat assistant with the user's intent pre-seeded.
-3. **Light, Progressive UX:**
-   - No overwhelming long static forms dumped at once.
-   - Information gathered progressively through guided conversational turns and inline mini-forms (`request_information`) with explicit **"Unknown / Don't Know"** toggles that serialize to `null`.
-4. **Deterministic Multi-Attribute Scoring & Temporal Window:**
-   - Mathematical composite scoring (metadata, temporal, geographic, and cascaded biometric vision).
-   - Bounds search space $[T_{\text{lost}} - \Delta t \to \text{Now}]$ without scanning full databases or safe registered profiles.
-5. **Human-in-the-Loop Staff Review & Progressive Alerts:**
-   - High confidence candidate matches are held in a staff review queue before disclosing identity or location.
-   - Phase 1 immediate acknowledgment; Phase 2 verified rescue or masked Twilio proxy bridge.
+> **Pitch Narrative:**
+> *"Imagine you find a child alone on the street. What should you do? Call the police? An orphanage? Post their photo on WhatsApp or Facebook groups? What is the right approach? If you don't know, don't worry — Wayfind will guide you."*
+
+### MVP Core Capabilities (In-Scope Demo):
+1. **Trauma-Informed Crisis Guidance:** Immediate ethical & legal protocols (stay in public, do not post photos to WhatsApp/social media, contact Child Helpline 1098).
+2. **Progressive Found-Child Intake:** Conversational extraction with inline mini-forms (`request_information`) and explicit "Unknown" toggles.
+3. **Safe Anonymous Case Reference:** Generates and presents a non-sensitive case reference card (`WF-FOUND-XXXX`) while notifying backend records.
+
+### Post-MVP Roadmap (Presented as Pitch Vision):
+- **Missing Child Reporting:** Parent intake with temporal window search.
+- **Deterministic Match Engine & HITL Verification:** Mathematical multi-attribute scoring without LLM hallucinations.
+- **Masked Twilio Gateway:** Anonymous voice/SMS bridge connecting verified guardian and finder.
 
 ---
 
