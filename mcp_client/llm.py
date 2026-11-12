@@ -162,13 +162,21 @@ class WayfindLLM:
 
     def __init__(
         self,
-        provider: str = "gemini",
+        provider: str = "groq",
         api_key: str | None = None,
         model: str | None = None,
     ) -> None:
         self.provider = provider.lower()
         self.api_key = api_key or ""
-        self.model_name = model or ("gemini-3.8-flash" if self.provider == "gemini" else "gpt-4o-mini")
+        # Default model per provider
+        if model:
+            self.model_name = model
+        elif self.provider == "groq":
+            self.model_name = "llama-3.3-70b-versatile"
+        elif self.provider == "gemini":
+            self.model_name = "gemini-3.8-flash"
+        else:
+            self.model_name = "gpt-4o-mini"
         self._llm: Any | None = None
 
         if self.api_key:
@@ -179,7 +187,16 @@ class WayfindLLM:
     def _init_client(self) -> None:
         """Initialise the underlying LangChain chat model."""
         try:
-            if self.provider == "gemini":
+            if self.provider == "groq":
+                from langchain_groq import ChatGroq
+
+                self._llm = ChatGroq(
+                    model=self.model_name,
+                    groq_api_key=self.api_key,
+                    temperature=0.1,
+                )
+                logger.info("ChatGroq model '%s' initialised", self.model_name)
+            elif self.provider == "gemini":
                 from langchain_google_genai import ChatGoogleGenerativeAI
 
                 self._llm = ChatGoogleGenerativeAI(

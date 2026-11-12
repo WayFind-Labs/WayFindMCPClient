@@ -119,7 +119,8 @@ See [.env.example](.env.example) for a full reference with comments.
 
 | Variable | Default | Required | Description |
 |----------|---------|----------|-------------|
-| `LLM_PROVIDER` | `gemini` | No | `gemini` or `openai` |
+| `LLM_PROVIDER` | `groq` | No | `groq`, `gemini`, or `openai` |
+| `GROQ_API_KEY` | — | Yes (if groq) | Groq API key — **default provider** |
 | `GEMINI_API_KEY` | — | Yes (if gemini) | Google AI API key |
 | `POSTGRES_SERVICE_URL` | — | Yes | Downstream PostgreSQL service |
 | `RAG_SERVICE_URL` | — | Yes | RAG knowledge-base service |

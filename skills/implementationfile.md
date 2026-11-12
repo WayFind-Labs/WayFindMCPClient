@@ -128,7 +128,9 @@
 
 | Secret / Config Key | Destination | Default / Fallback | Production Requirement |
 |---|---|---|---|
-| `GEMINI_API_KEY` | `WayFindMCPClient/.env` | None (required for LLM) | Live Gemini API key |
+| `LLM_PROVIDER` | `WayFindMCPClient/.env` | `groq` | `groq` \| `gemini` \| `openai` |
+| `GROQ_API_KEY` | `WayFindMCPClient/.env` | None (required) | Live Groq API key (`gsk_...`) — **active provider** |
+| `GEMINI_API_KEY` | `WayFindMCPClient/.env` | None (optional alt) | Google AI API key |
 | `DATABASE_URL` | `ShelterAppUiBackend/.env` | Mock memory in `PostgresClient` | `postgresql+asyncpg://user:pass@host:5432/wayfind` |
 | `REDIS_URL` | Backend & Agent `.env` | In-memory session fallback | `redis://localhost:6379/0` |
 | `S3_BUCKET` / `R2_BUCKET` | `ShelterAppUiBackend/.env` | Local temporary directory | S3 / Cloudflare R2 bucket credentials |

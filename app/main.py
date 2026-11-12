@@ -68,9 +68,14 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
 
     # ── LLM Client (Phase 6) ──────────────────────────────────────────────────
     logger.info("Initialising WayfindLLM (provider=%s)", settings.llm_provider)
+    _api_key_map = {
+        "groq": settings.groq_api_key,
+        "gemini": settings.gemini_api_key,
+        "openai": settings.openai_api_key,
+    }
     llm_client = WayfindLLM(
         provider=settings.llm_provider,
-        api_key=settings.gemini_api_key,
+        api_key=_api_key_map.get(settings.llm_provider, ""),
     )
     set_llm(llm_client)
     app.state.llm = llm_client

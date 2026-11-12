@@ -33,9 +33,10 @@ class Settings(BaseSettings):
     )
 
     # ── LLM Provider ──────────────────────────────────────────────────────────
-    llm_provider: str = "gemini"
+    llm_provider: str = "groq"
     gemini_api_key: str = ""
     openai_api_key: str = ""
+    groq_api_key: str = ""
 
     # ── Downstream Service URLs ───────────────────────────────────────────────
     postgres_service_url: str = ""
@@ -72,7 +73,7 @@ class Settings(BaseSettings):
     @field_validator("llm_provider")
     @classmethod
     def validate_llm_provider(cls, v: str) -> str:
-        allowed = {"gemini", "openai"}
+        allowed = {"gemini", "openai", "groq"}
         if v.lower() not in allowed:
             raise ValueError(f"llm_provider must be one of {allowed}, got: {v!r}")
         return v.lower()
