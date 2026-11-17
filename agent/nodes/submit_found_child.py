@@ -76,6 +76,10 @@ async def submit_found_child(state: WayfindState) -> dict:
         try:
             if isinstance(report, dict):
                 report = FoundChildReport(**report)
+            if not report.submission_id:
+                report = report.model_copy(update={
+                    "submission_id": str(uuid.uuid5(uuid.NAMESPACE_URL, f"wayfind-found:{state.get('session_id', '')}"))
+                })
             result = await mcp.submit_found_child_report(report=report)
             case_ref = result.case_reference
             logger.info("Session %s: report submitted, case_reference=%s", state.get("session_id"), case_ref)

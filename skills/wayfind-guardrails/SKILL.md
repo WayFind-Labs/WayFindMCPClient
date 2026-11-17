@@ -83,3 +83,5 @@ The core system must be deterministic, transparent, and safe by design. Child sa
 Found-child submission may emit `submission_complete` only after the gateway
 returns a validated backend receipt. Tool outages and missing configuration
 must remain errors, never local reference fallbacks.
+Retries within one session use the same submission ID. A distinct new report
+requires a distinct draft ID before recording.

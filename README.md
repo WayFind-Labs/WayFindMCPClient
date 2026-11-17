@@ -210,3 +210,5 @@ Recording a found-child report requires `POSTGRES_SERVICE_URL` pointing to the
 gateway and matching `SHELTER_BACKEND_API_KEY`. The tool and agent surface a
 failure if a committed backend receipt is unavailable; they never generate a
 local success reference.
+The agent attaches a stable submission key derived from the session so retrying
+the same report after a lost response reuses the database reference.

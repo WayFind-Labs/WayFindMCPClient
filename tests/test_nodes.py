@@ -243,6 +243,10 @@ async def test_node_submit_found_child():
     state["found_child_report"] = FoundChildReport(found_location="Mall Road")
     res = await submit_found_child(state)
     assert res["case_reference"] == "WF-FOUND-999"
+    first_key = mock_mcp.submit_found_child_report.call_args.kwargs["report"].submission_id
+    assert first_key
+    await submit_found_child(state)
+    assert mock_mcp.submit_found_child_report.call_args.kwargs["report"].submission_id == first_key
 
 
 @pytest.mark.asyncio

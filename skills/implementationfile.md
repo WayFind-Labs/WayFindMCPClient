@@ -151,3 +151,6 @@ for model guidance and the 17 November workspace audit for outstanding work.
 The report submission path requires the gateway and committed PostgreSQL
 receipt. Synthetic success fallbacks have been removed from the node, MCP
 wrapper, tool and downstream HTTP client.
+The submit node attaches a stable per-session submission ID for database
+idempotency. A deliberate second report in one session requires a distinct
+draft ID in the future conversation state design.
