@@ -51,6 +51,16 @@ async def submit_found_child(state: WayfindState) -> dict:
     existing_events = state.get("agent_events", [])
     report = state.get("found_child_report")
 
+    # A follow-up such as “thank you” can re-enter this node while the graph
+    # still carries the completed report. Never create a second case reference.
+    existing_reference = state.get("case_reference")
+    if existing_reference:
+        return {
+            "agent_events": existing_events + [
+                {"type": "assistant_message", "content": f"Your report is already recorded. Reference number: {existing_reference}."}
+            ]
+        }
+
     if report is None:
         logger.error("Session %s: submit_found_child called with no report", state.get("session_id"))
         return {
