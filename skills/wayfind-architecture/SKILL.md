@@ -120,3 +120,7 @@ $$\text{Search Time Range } = [T_{\text{lost}} - \Delta t_{\text{buffer}}, \quad
    Phase 2 SMS: Shelter Address,       Phase 2 SMS: Masked Call Link
    Desk Contact, Case Passkey          + Finder Guided to Safe Location
 ```
+# Found-child write path
+
+Agent node → MCP tool → PostgresClient → gateway internal report endpoint →
+PostgreSQL. `POSTGRES_SERVICE_URL` and a shared internal API key are required.

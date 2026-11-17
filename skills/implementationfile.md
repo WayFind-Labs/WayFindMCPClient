@@ -146,3 +146,8 @@ for model guidance and the 17 November workspace audit for outstanding work.
 | `S3_BUCKET` / `R2_BUCKET` | `ShelterAppUiBackend/.env` | Local temporary directory | S3 / Cloudflare R2 bucket credentials |
 | `TWILIO_ACCOUNT_SID` & `TOKEN` | `ShelterAppUiBackend/.env` | Mock logger | Live Twilio credentials for SMS/Voice |
 | `QDRANT_URL` & `API_KEY` | `WayFindMCPClient/.env` | Static YAML fallback | Live Qdrant cluster |
+# Current found-child write behavior
+
+The report submission path requires the gateway and committed PostgreSQL
+receipt. Synthetic success fallbacks have been removed from the node, MCP
+wrapper, tool and downstream HTTP client.

@@ -78,3 +78,8 @@ The core system must be deterministic, transparent, and safe by design. Child sa
    - Commit messages must follow Conventional Commits formatting (`feat:`, `fix:`, `refactor:`, `docs:`, etc.) with clear descriptions of what was implemented.
 2. **Mandatory Context Synchronization:**
    - Whenever work modifies, expands, or introduces changes to state schemas, intent nodes, tools, prompts, or workflows, immediately update project context files ([`skills/wayfind-guardrails/SKILL.md`](file:///e:/React/Shelter/WayFindMCPClient/skills/wayfind-guardrails/SKILL.md), [`skills/wayfind-architecture/SKILL.md`](file:///e:/React/Shelter/WayFindMCPClient/skills/wayfind-architecture/SKILL.md), [`skills/implementationfile.md`](file:///e:/React/Shelter/WayFindMCPClient/skills/implementationfile.md), and [`README.md`](file:///e:/React/Shelter/WayFindMCPClient/README.md)) to maintain complete context accuracy.
+# Submission receipt rule
+
+Found-child submission may emit `submission_complete` only after the gateway
+returns a validated backend receipt. Tool outages and missing configuration
+must remain errors, never local reference fallbacks.

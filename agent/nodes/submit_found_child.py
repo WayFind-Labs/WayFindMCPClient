@@ -94,13 +94,9 @@ async def submit_found_child(state: WayfindState) -> dict:
                 "errors":        state.get("errors", []) + [str(exc)],
             }
 
-    # ── Phase 5 stub ──────────────────────────────────────────────────────────
-    case_ref = f"WF-FOUND-{uuid.uuid4().hex[:8].upper()}"
-    logger.info("Session %s: submit_found_child STUB — case_reference=%s", state.get("session_id"), case_ref)
+    logger.error("Session %s: found-child submission unavailable: MCP client missing", state.get("session_id"))
     return {
-        "case_reference": case_ref,
-        "agent_events":   existing_events + [
-            {"type": "submission_complete", "record_id": case_ref},
-            {"type": "assistant_message", "content": _SUCCESS_MSG.format(ref=case_ref)},
-        ],
+        "agent_events": existing_events + [{"type": "error", "message": _FAILURE_MSG}],
+        "tool_failures": state.get("tool_failures", []) + [_TOOL_NAME],
+        "errors": state.get("errors", []) + ["submit_found_child: MCP client unavailable"],
     }

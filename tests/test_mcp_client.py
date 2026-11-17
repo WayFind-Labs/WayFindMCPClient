@@ -128,9 +128,8 @@ async def test_mcp_submit_found_child(mcp):
         gender="female",
         found_location="Sector G-9",
     )
-    res = await mcp.submit_found_child_report(report)
-    assert res.case_reference.startswith("WF-FOUND-")
-    assert res.guidance
+    with pytest.raises(RuntimeError, match="valid backend receipt"):
+        await mcp.submit_found_child_report(report)
 
 
 @pytest.mark.asyncio

@@ -204,3 +204,9 @@ Response includes `X-Session-ID` header for the next turn.
 - Full Docker Compose deployment (all services together)
 - Production image safety scan integration
 - Real PostgreSQL / RAG / image backend integration
+# Found-child submission dependency
+
+Recording a found-child report requires `POSTGRES_SERVICE_URL` pointing to the
+gateway and matching `SHELTER_BACKEND_API_KEY`. The tool and agent surface a
+failure if a committed backend receipt is unavailable; they never generate a
+local success reference.
