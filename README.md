@@ -1,6 +1,35 @@
-﻿# WayFindMCPClient
+# WayFindMCPClient
 
 > Agent backend for the **Wayfind** platform — a prompt-first PWA for missing children, found children, and shelter access.
+
+## Runtime conversation knowledge (17 November 2026)
+
+The user-supplied found-child guidance is preserved unchanged in
+[`docs/reference/found_child_user_guidance.txt`](docs/reference/found_child_user_guidance.txt).
+The MVP adaptation in
+[`mcp_client/knowledge/found_child_guidance.md`](mcp_client/knowledge/found_child_guidance.md)
+is actual runtime context, loaded by `mcp_client/conversation_context.py` and sent
+as a system message to Groq for follow-ups, safety/general guidance, and final
+LLM responses. Recent user/assistant dialogue accompanies it. Guidance nodes now
+call this grounded model path; a missing model returns explicitly unavailable
+safety help. Restart the agent after editing the cached knowledge file.
+
+The original includes future feature proposals and unverified legal assertions;
+it is preserved for provenance and is not injected verbatim. The runtime version
+keeps practical safety/communication/reporting/handover guidance, regional contact
+sources, and truthful capability limits. Recording/transcription and biometric
+capture remain post-MVP. It does not claim notifications, dispatch, encryption,
+or a durable save merely because those are proposed in the source.
+
+This is a targeted knowledge-injection change, not completion of the wider MVP
+audit: intent/extraction heuristics, auto-submission behavior, static submission
+messages, persistence and frontend issues still need their tracked fixes.
+The extraction/classification model prompts are not changed by this knowledge
+asset. Existing event responses may still bypass the final LLM fallback.
+
+Verification: `python -m pytest tests/test_conversation_context.py -q` checks
+actual outgoing prompt context, dialogue role boundaries, guidance-node wiring
+and model-failure behavior using synthetic data and mocked model responses.
 
 ---
 
@@ -39,7 +68,7 @@ The frontend sends a single natural-language message. The backend:
 |-------|-----------|
 | API | FastAPI + Uvicorn |
 | Agent | LangGraph |
-| LLM | Gemini (via `langchain-google-genai`) |
+| LLM | Groq (`openai/gpt-oss-120b` by default, via `langchain-groq`); model remains configurable |
 | MCP Server | FastMCP |
 | Session | Redis |
 | Async HTTP | httpx |

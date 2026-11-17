@@ -37,6 +37,7 @@ class Settings(BaseSettings):
     gemini_api_key: str = ""
     openai_api_key: str = ""
     groq_api_key: str = ""
+    llm_model: str = "openai/gpt-oss-120b"
 
     # ── Downstream Service URLs ───────────────────────────────────────────────
     postgres_service_url: str = ""

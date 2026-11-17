@@ -2,8 +2,20 @@
 
 **Date:** 2026-11-13  
 **Status:** MVP Pivot — Laser-focused on **"I Found a Child: Safe Guidance & Ethical Intake"**  
-**LLM Engine:** Groq (`llama-3.3-70b-versatile`) via `langchain-groq`  
+**LLM Engine:** Groq (`openai/gpt-oss-120b` default; configurable) via `langchain-groq`
 **Workspaces:** `ShelterApp ui` (Next.js 14), `ShelterAppUiBackend` (FastAPI), `WayFindMCPClient` (FastAPI + LangGraph + FastMCP)
+
+## Implemented update — runtime guidance context, 17 November 2026
+
+- [x] Preserve the supplied found-child reference in `docs/reference/found_child_user_guidance.txt`.
+- [x] Add the MVP runtime knowledge asset at `mcp_client/knowledge/found_child_guidance.md` and load it through `mcp_client/conversation_context.py`.
+- [x] Inject guidance and recent dialogue into LLM follow-ups, guidance-node answers and final LLM-response fallbacks; guidance model failure is explicit.
+- [x] Keep conversation audio recording/transcription post-MVP; prevent the runtime guide from promising unimplemented recording, biometric matching or authority notification.
+- [ ] Complete the separate audit backlog: heuristic-free routing/extraction, intake contract repairs, unknown/correction behavior, idempotency, durable persistence, receipt UI and safe public APIs.
+
+The historical completion labels and 1098 references below do not establish
+current deployed behavior. Use the runtime policy's regional contact records
+for model guidance and the 17 November workspace audit for outstanding work.
 
 ---
 

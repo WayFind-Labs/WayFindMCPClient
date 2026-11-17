@@ -8,6 +8,24 @@ description: >
 
 # Wayfind — Master Architecture Reference
 
+## Implemented runtime knowledge wiring — 17 November 2026
+
+User reference: `docs/reference/found_child_user_guidance.txt` (unchanged).
+Runtime adaptation: `mcp_client/knowledge/found_child_guidance.md`.
+`mcp_client/conversation_context.py` loads it as a packaged UTF-8 resource,
+caches it until process restart, and assembles bounded user/assistant history
+without accepting history-provided system/tool roles. The LLM wrapper uses it
+for follow-ups, contextual guidance and final model-response fallbacks.
+`safety_guidance` and `get_guidance_node` now use the contextual model method,
+with explicit static safety help when unavailable, instead of the MCP guidance
+path. MCP guidance tools remain available separately for existing callers.
+
+Recording/transcription and biometric prompts remain outside the MVP. This
+change does not change extraction/classification, graph routing/submission,
+durable persistence, notification delivery or the frontend. Those audit gaps
+remain open. The larger architecture below includes roadmap capabilities and
+must not be treated as proof they are already deployed.
+
 ## 1. Core Operating Foundations & Entry Scenarios
 
 1. **Single Landing Page with 3 Scenario Cards:**

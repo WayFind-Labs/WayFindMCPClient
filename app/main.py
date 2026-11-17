@@ -76,6 +76,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     llm_client = WayfindLLM(
         provider=settings.llm_provider,
         api_key=_api_key_map.get(settings.llm_provider, ""),
+        model=settings.llm_model,
     )
     set_llm(llm_client)
     app.state.llm = llm_client

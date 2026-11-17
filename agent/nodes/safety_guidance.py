@@ -1,77 +1,35 @@
-"""
-agent/nodes/safety_guidance.py
-Node: safety_guidance
+"""Found-child guidance grounded in the packaged runtime knowledge document.
 
-Responsibility:
-  Retrieves safety guidance for the person who found the child, before the
-  report is submitted. Calls the get_guidance MCP tool with topic="found_child".
-
-  Guidance is added to agent_events as an assistant_message BEFORE the
-  submission event, so the user sees what to do while the report is being filed.
-
-  Falls back to static_guidance.yaml content if MCP is unavailable.
-
-Inputs consumed:
-  state.user_prompt (for context in the guidance query)
-
-Outputs produced:
-  agent_events — assistant_message event with guidance text appended
-
-Phase 5 status: STUB with static fallback — real MCP call wired in Phase 6.
+This node only emits guidance; it does not submit a report or notify anyone.
+The graph still controls when it runs and delivers accumulated events.
 """
 
 from __future__ import annotations
 
 import logging
-import os
-from functools import lru_cache
 
-from agent.dependencies import get_mcp_client
+from agent.dependencies import get_llm
 from agent.state import WayfindState
+from mcp_client.conversation_context import UNAVAILABLE_GUIDANCE
 
 logger = logging.getLogger(__name__)
 
-_STATIC_GUIDANCE = (
-    "⚠️ Immediate Safety & Child Protection Guidance:\n"
-    "• DO NOT post photos or location details on WhatsApp groups, Facebook, or social media.\n"
-    "• Stay with the child in a well-lit, open public location (e.g. security booth, transit desk).\n"
-    "• Contact the Child Helpline (1098) or emergency police immediately.\n"
-    "• Wayfind is securing this intake report to coordinate safely with authorized child welfare officers."
-)
-
-
-@lru_cache(maxsize=1)
-def _static_found_guidance() -> str:
-    yaml_path = os.path.normpath(
-        os.path.join(os.path.dirname(__file__), "..", "..", "config", "static_guidance.yaml")
-    )
-    try:
-        import yaml  # type: ignore[import-untyped]
-        with open(yaml_path, encoding="utf-8") as f:
-            data = yaml.safe_load(f)
-        return data.get("found_child", {}).get("guidance", _STATIC_GUIDANCE).strip()
-    except Exception:
-        return _STATIC_GUIDANCE
-
 
 async def safety_guidance(state: WayfindState) -> dict:
-    """Fetch and emit safety guidance before submitting the found-child report."""
-    existing_events = state.get("agent_events", [])
-    guidance_text   = _static_found_guidance()   # fallback
-
-    mcp = get_mcp_client()
-    if mcp is not None:
+    """Generate contextual guidance or disclose model unavailability."""
+    guidance_text = UNAVAILABLE_GUIDANCE
+    llm = get_llm()
+    if llm is not None:
         try:
-            result = await mcp.get_guidance(
-                query=state.get("user_prompt", "found a child"),
-                topic="found_child",
-            )
-            guidance_text = result.guidance
-        except Exception as exc:
-            logger.warning("safety_guidance MCP call failed, using static: %s", exc)
+            text = await llm.generate_guidance_response(state)
+            if isinstance(text, str) and text.strip():
+                guidance_text = text.strip()
+        except Exception:
+            # Do not log raw prompts, locations, provider bodies or keys.
+            logger.warning("Contextual guidance unavailable; returning static safety help")
 
     return {
-        "agent_events": existing_events + [
+        "agent_events": state.get("agent_events", []) + [
             {"type": "assistant_message", "content": guidance_text}
         ]
     }

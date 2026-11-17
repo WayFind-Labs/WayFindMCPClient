@@ -24,6 +24,7 @@ from typing import Any
 from pydantic import BaseModel, Field
 
 from agent.state import Intent, WayfindState
+from mcp_client.conversation_context import UNAVAILABLE_GUIDANCE, conversation_messages
 from schemas.child import AgeRange, ChildSearchCriteria, FoundChildReport, HeightRange
 
 logger = logging.getLogger(__name__)
@@ -172,7 +173,9 @@ class WayfindLLM:
         if model:
             self.model_name = model
         elif self.provider == "groq":
-            self.model_name = "llama-3.3-70b-versatile"
+            # Groq retired llama-3.3-70b-versatile on 2026-08-16. Keep the
+            # model configurable, with a currently supported Groq default.
+            self.model_name = "openai/gpt-oss-120b"
         elif self.provider == "gemini":
             self.model_name = "gemini-3.8-flash"
         else:
@@ -509,9 +512,22 @@ class WayfindLLM:
                 updates["found_location"] = str(form_data["location"])
             elif "found_location" in form_data and form_data["found_location"]:
                 updates["found_location"] = str(form_data["found_location"])
-            if "approximate_age" in form_data and form_data["approximate_age"]:
+            age_value = form_data.get("approximate_age", form_data.get("age"))
+            if age_value is not None and age_value != "":
                 with contextlib.suppress(ValueError, TypeError):
-                    updates["approximate_age"] = int(form_data["approximate_age"])
+                    updates["approx_age"] = AgeRange(exact=int(age_value))
+            if form_data.get("found_at"):
+                updates["found_at"] = str(form_data["found_at"])
+            if form_data.get("clothing"):
+                clothing = form_data["clothing"]
+                updates["clothing"] = [str(clothing)] if isinstance(clothing, str) else list(clothing)
+            if form_data.get("identifying_features"):
+                features = form_data["identifying_features"]
+                updates["identifying_features"] = [str(features)] if isinstance(features, str) else list(features)
+            if form_data.get("current_circumstances"):
+                updates["current_circumstances"] = str(form_data["current_circumstances"])
+            if form_data.get("authorities_contacted") is not None:
+                updates["authorities_contacted"] = bool(form_data["authorities_contacted"])
 
         if updates:
             current = current.model_copy(update=updates)
@@ -535,22 +551,22 @@ class WayfindLLM:
                 llm_updates: dict[str, Any] = {}
                 if extracted.gender and not current.gender:
                     llm_updates["gender"] = extracted.gender.lower()
-                if extracted.approximate_age and not current.approximate_age:
-                    llm_updates["approximate_age"] = extracted.approximate_age
+                if extracted.approximate_age is not None and not current.approx_age.exact:
+                    llm_updates["approx_age"] = AgeRange(exact=extracted.approximate_age)
                 if extracted.found_location and (not current.found_location or current.found_location == "unknown"):
                     llm_updates["found_location"] = extracted.found_location
-                if extracted.found_date and not current.found_date:
-                    llm_updates["found_date"] = extracted.found_date
-                if extracted.clothing_description and not current.clothing_description:
-                    llm_updates["clothing_description"] = extracted.clothing_description
-                if extracted.physical_condition and not current.physical_condition:
-                    llm_updates["physical_condition"] = extracted.physical_condition
+                if extracted.found_date and not current.found_at:
+                    llm_updates["found_at"] = extracted.found_date
+                if extracted.clothing_description and not current.clothing:
+                    llm_updates["clothing"] = [extracted.clothing_description]
+                if extracted.physical_condition and not current.current_circumstances:
+                    llm_updates["current_circumstances"] = extracted.physical_condition
                 if extracted.distinguishing_features:
-                    llm_updates["distinguishing_features"] = list(dict.fromkeys(
-                        current.distinguishing_features + extracted.distinguishing_features
+                    llm_updates["identifying_features"] = list(dict.fromkeys(
+                        current.identifying_features + extracted.distinguishing_features
                     ))
-                if extracted.current_status and not current.current_status:
-                    llm_updates["current_status"] = extracted.current_status
+                if extracted.current_status and not current.description:
+                    llm_updates["description"] = extracted.current_status
 
                 if llm_updates:
                     current = current.model_copy(update=llm_updates)
@@ -614,13 +630,16 @@ class WayfindLLM:
             try:
                 labels = [field_labels.get(f, f.replace("_", " ")) for f in missing_fields[:2]]
                 prompt = (
-                    f"Ask the user gently and empathetically for these missing details: {', '.join(labels)}.\n"
-                    "Keep the question short (1-2 sentences), caring, and clear. Never be robotic."
+                    "Respond to the latest user message using the guidance and dialogue. "
+                    "Answer any safety question or urgent concern before continuing intake. "
+                    "If this is the start of a found-child conversation, give brief immediate "
+                    "safety guidance even though intake details are missing. "
+                    f"The intake currently lacks: {', '.join(labels)}. "
+                    "Ask at most one useful follow-up, without pressuring someone who already "
+                    "said they do not know. Keep the response short, caring and clear. "
+                    "No report has been submitted by this follow-up operation."
                 )
-                response = await self._llm.ainvoke([
-                    {"role": "system", "content": "You are a caring assistant helping a user report or search for a child."},
-                    {"role": "user", "content": prompt},
-                ])
+                response = await self._llm.ainvoke(conversation_messages(prompt, context))
                 content = getattr(response, "content", "")
                 if isinstance(content, str) and content.strip():
                     return content.strip()
@@ -632,6 +651,31 @@ class WayfindLLM:
         if len(labels) == 1:
             return f"Could you please tell me {labels[0]}?"
         return f"Could you please tell me {labels[0]} and {labels[1]}?"
+
+    async def generate_guidance_response(self, state: WayfindState) -> str:
+        """Use packaged knowledge and recent dialogue without performing tool actions.
+
+        The caller discloses model failure rather than substituting heuristics.
+        """
+        if self._llm is None:
+            raise RuntimeError("Conversation model is unavailable")
+        task = (
+            "Give concise, practical guidance for the user's current situation. "
+            "Answer their latest question directly, prioritize immediate danger, "
+            "and ask at most one clarification if needed. Use the supplied Pakistan "
+            "guidance and recent dialogue. This operation only provides guidance: "
+            "it does not save a report, record audio, contact an authority or verify "
+            "a guardian. Previous assistant claims are not verified tool receipts."
+        )
+        response = await self._llm.ainvoke(conversation_messages(
+            task,
+            state.get("conversation_history", []),
+            state.get("user_prompt", ""),
+        ))
+        content = getattr(response, "content", "")
+        if not isinstance(content, str) or not content.strip():
+            raise ValueError("Conversation model returned an empty guidance response")
+        return content.strip()
 
     # ── Final Response Generation ─────────────────────────────────────────────
 
@@ -655,18 +699,22 @@ class WayfindLLM:
                     "3. NEVER reveal internal match scores, algorithms, or technical IDs.\n"
                     "4. Summarise the next steps clearly."
                 )
-                summary = f"Intent: {intent.value if intent else 'unknown'}. Recent events count: {len(events)}."
-                response = await self._llm.ainvoke([
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": f"Provide a brief, reassuring closing message based on this session state: {summary}"},
-                ])
+                intent_name = getattr(intent, "value", intent) or "unknown"
+                task = (
+                    f"{system_prompt}\nCurrent scenario: {intent_name}. "
+                    "No verified submission or notification receipt was supplied to this "
+                    "response operation. Do not claim any action completed. Answer the "
+                    "latest question and explain an appropriate next step."
+                )
+                response = await self._llm.ainvoke(conversation_messages(
+                    task,
+                    state.get("conversation_history", []),
+                    state.get("user_prompt", ""),
+                ))
                 content = getattr(response, "content", "")
                 if isinstance(content, str) and content.strip():
                     return content.strip()
             except Exception as exc:
                 logger.warning("LLM generate_final_response failed: %s", exc)
 
-        return (
-            "Thank you for reaching out to Wayfind. We have recorded your information and "
-            "our team will take the appropriate next steps. If you have any new details, please share them."
-        )
+        return UNAVAILABLE_GUIDANCE

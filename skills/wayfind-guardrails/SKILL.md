@@ -7,6 +7,28 @@ description: >
 
 # Wayfind — Safety, Privacy & Operational Guardrails
 
+## Current MVP runtime policy — 17 November 2026
+
+`mcp_client/knowledge/found_child_guidance.md` is the runtime conversation policy,
+adapted from the preserved user reference in `docs/reference/`. It is explicitly
+loaded into model calls; developer skill files are not automatically runtime
+context. This current MVP policy takes precedence over aspirational wording below.
+
+- Recording/transcription, biometric capture, automatic authority notification
+  and verified reunification are not enabled by the reference document.
+- Never assert that parents/authorities were alerted, staff are reviewing, data
+  is encrypted or a report is durably committed without verified evidence.
+- Use sourced regional contacts; do not present 1098 as a universal Pakistan
+  child helpline or 1099 as emergency medical dispatch.
+- Stay visible and seek official help; do not advise private transport or handing
+  a child to an unverified claimant. Avoid unsupported guarantees such as “you
+  are safe,” coercive questioning, recording prompts and hidden-body inspection.
+- Guidance-node model failure uses explicit unavailable safety help; no new
+  regex/keyword conversation fallback is introduced by this integration.
+- Wider audit fixes remain pending, including legacy heuristic routing, static
+  success messages and report persistence. Prompt instructions alone do not
+  enforce database/authentication/notification guarantees.
+
 ## 1. Core Operating Principle
 The core system must be deterministic, transparent, and safe by design. Child safety data and direct guardian-finder interactions must be strictly controlled and protected.
 
