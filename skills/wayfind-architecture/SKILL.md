@@ -130,3 +130,4 @@ The graph pauses on `request_confirmation` until a form response with
 The LLM wrapper uses heuristics only when no API key is configured; configured
 provider errors propagate to the agent.
 Runtime guidance is packaged and location neutral for found-child intake.
+The gateway receipt timestamp is passed through the agent event to the UI.

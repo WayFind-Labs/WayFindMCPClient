@@ -235,7 +235,7 @@ async def test_node_safety_guidance():
 async def test_node_submit_found_child():
     mock_mcp = MagicMock()
     mock_mcp.submit_found_child_report = AsyncMock(
-        return_value=MagicMock(case_reference="WF-FOUND-999")
+        return_value=MagicMock(case_reference="WF-FOUND-999", submitted_at="2026-11-17T00:00:00Z")
     )
     set_mcp_client(mock_mcp)
 
@@ -247,6 +247,7 @@ async def test_node_submit_found_child():
     state["submission_confirmed"] = True
     res = await submit_found_child(state)
     assert res["case_reference"] == "WF-FOUND-999"
+    assert next(event for event in res["agent_events"] if event["type"] == "submission_complete")["submitted_at"] == "2026-11-17T00:00:00Z"
     first_key = mock_mcp.submit_found_child_report.call_args.kwargs["report"].submission_id
     assert first_key
     await submit_found_child(state)

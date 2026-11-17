@@ -97,11 +97,12 @@ async def submit_found_child(state: WayfindState) -> dict:
                 })
             result = await mcp.submit_found_child_report(report=report)
             case_ref = result.case_reference
+            submitted_at = result.submitted_at if isinstance(result.submitted_at, str) else None
             logger.info("Session %s: report submitted, case_reference=%s", state.get("session_id"), case_ref)
             return {
                 "case_reference": case_ref,
                 "agent_events":   existing_events + [
-                    {"type": "submission_complete", "record_id": case_ref},
+                    {"type": "submission_complete", "record_id": case_ref, "submitted_at": submitted_at},
                     {"type": "assistant_message", "content": _SUCCESS_MSG.format(ref=case_ref)},
                 ],
             }

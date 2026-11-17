@@ -99,6 +99,7 @@ class AgentEvent(BaseModel):
 
     # submission_complete: the new record / case reference
     record_id: str | None = None
+    submitted_at: str | None = None
 
     # review_pending: reference for the human-review submission
     case_reference: str | None = None
