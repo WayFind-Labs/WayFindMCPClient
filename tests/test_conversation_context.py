@@ -132,6 +132,31 @@ async def test_found_child_structured_fields_map_to_canonical_report():
     assert report.current_circumstances == "distressed"
     assert report.identifying_features == ["glasses"]
     assert report.found_at == "2026-11-17T10:00:00+05:00"
+
+
+@pytest.mark.asyncio
+async def test_structured_correction_replaces_prior_found_details():
+    from schemas.child import AgeRange, FoundChildReport
+
+    llm = WayfindLLM(api_key="")
+    llm._llm = SimpleNamespace(
+        with_structured_output=lambda _model: SimpleNamespace(
+            ainvoke=AsyncMock(return_value=_FoundChildLLM(
+                approximate_age_min=6, approximate_age_max=8,
+                found_location="New Market", clothing_description="blue shirt",
+            ))
+        )
+    )
+    old = FoundChildReport(
+        found_location="Old Market", approx_age=AgeRange(exact=5), clothing=["red shirt"]
+    )
+    corrected = await llm.extract_found_child_report(old, "Actually, age 6 to 8, New Market, blue shirt")
+    assert corrected.approx_age.min == 6 and corrected.approx_age.max == 8
+    assert corrected.approx_age.exact is None
+    assert corrected.found_location == "New Market"
+    assert corrected.clothing == ["blue shirt"]
+
+
 @pytest.mark.asyncio
 async def test_configured_provider_failure_never_uses_heuristic_found_extraction():
     from unittest.mock import MagicMock, AsyncMock

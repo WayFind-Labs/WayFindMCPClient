@@ -165,3 +165,5 @@ The receipt carries `schema_version=FoundChildIntakeV1`, and agent age/height
 bounds align with gateway validation.
 The confirmation summary includes all known, relevant intake details before
 the write gate opens.
+Structured model corrections now replace earlier facts and validate the
+merged report; approximate ages use range bounds.

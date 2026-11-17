@@ -126,8 +126,10 @@ class _FoundChildLLM(BaseModel):
     )
     approximate_age: int | None = Field(
         default=None,
-        description="Estimated age in years if described.",
+        description="Exact age only when explicitly stated as exact.",
     )
+    approximate_age_min: int | None = Field(default=None, description="Lower age bound when approximate or ranged.")
+    approximate_age_max: int | None = Field(default=None, description="Upper age bound when approximate or ranged.")
     found_location: str | None = Field(
         default=None,
         description="Where the child was found (street, landmark, city).",
@@ -538,7 +540,7 @@ class WayfindLLM:
                 updates["authorities_contacted"] = bool(form_data["authorities_contacted"])
 
         if updates:
-            current = current.model_copy(update=updates)
+            current = FoundChildReport.model_validate({**current.model_dump(), **updates})
 
         if self._llm is not None and prompt.strip():
             try:
@@ -547,7 +549,9 @@ class WayfindLLM:
                     "CRITICAL RULES:\n"
                     "1. DO NOT invent or assume any values not explicitly stated.\n"
                     "2. Leave fields None if not mentioned.\n"
-                    "3. Extract found_location if a location is described."
+                    "3. Extract found_location if a location is described.\n"
+                    "4. Extract only facts from the latest message. Corrections replace older facts.\n"
+                    "5. Use age bounds for an approximate range; exact age only when explicitly exact."
                 )
 
                 structured_llm = self._llm.with_structured_output(_FoundChildLLM)
@@ -557,27 +561,31 @@ class WayfindLLM:
                 ])
 
                 llm_updates: dict[str, Any] = {}
-                if extracted.gender and not current.gender:
+                if extracted.gender:
                     llm_updates["gender"] = extracted.gender.lower()
-                if extracted.approximate_age is not None and not current.approx_age.exact:
+                if extracted.approximate_age is not None:
                     llm_updates["approx_age"] = AgeRange(exact=extracted.approximate_age)
-                if extracted.found_location and (not current.found_location or current.found_location == "unknown"):
+                elif extracted.approximate_age_min is not None or extracted.approximate_age_max is not None:
+                    llm_updates["approx_age"] = AgeRange(
+                        min=extracted.approximate_age_min, max=extracted.approximate_age_max
+                    )
+                if extracted.found_location:
                     llm_updates["found_location"] = extracted.found_location
-                if extracted.found_date and not current.found_at:
+                if extracted.found_date:
                     llm_updates["found_at"] = extracted.found_date
-                if extracted.clothing_description and not current.clothing:
+                if extracted.clothing_description:
                     llm_updates["clothing"] = [extracted.clothing_description]
-                if extracted.physical_condition and not current.current_circumstances:
+                if extracted.physical_condition:
                     llm_updates["current_circumstances"] = extracted.physical_condition
                 if extracted.distinguishing_features:
                     llm_updates["identifying_features"] = list(dict.fromkeys(
                         current.identifying_features + extracted.distinguishing_features
                     ))
-                if extracted.current_status and not current.description:
+                if extracted.current_status:
                     llm_updates["description"] = extracted.current_status
 
                 if llm_updates:
-                    current = current.model_copy(update=llm_updates)
+                    current = FoundChildReport.model_validate({**current.model_dump(), **llm_updates})
                 return current
             except Exception as exc:
                 if self.api_key:
