@@ -90,6 +90,10 @@ class FoundChildReport(BaseModel):
     raw URL, file path, or base64 string.
     """
 
+    schema_version: str = Field(default="FoundChildIntakeV1", description="Canonical intake contract version.")
+    jurisdiction: str | None = Field(default=None, description="Country/province/city context when known; never inferred by the model.")
+    submission_id: str | None = Field(default=None, description="Client-generated idempotency key for a confirmed draft.")
+    received_at: str | None = Field(default=None, description="Server receipt timestamp; populated by the receiving service.")
     approx_age: AgeRange = Field(default_factory=AgeRange, description="Approximate age of the found child.")
     gender: str | None = Field(
         default=None,
