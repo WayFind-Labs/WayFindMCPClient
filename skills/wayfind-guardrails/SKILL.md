@@ -90,3 +90,4 @@ Configured model failures must not fall back to keyword extraction.
 Do not assume Pakistan from a found-child report; location is a case fact.
 Carry the backend receipt timestamp into `submission_complete`.
 Use the `FoundChildIntakeV1` schema version in the report and receipt event.
+Show known report details in the confirmation summary before any write.

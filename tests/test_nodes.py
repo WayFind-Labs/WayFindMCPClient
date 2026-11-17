@@ -243,6 +243,7 @@ async def test_node_submit_found_child():
     state["found_child_report"] = FoundChildReport(found_location="Mall Road")
     review = await submit_found_child(state)
     assert any(event["type"] == "request_confirmation" for event in review["agent_events"])
+    assert "Found near: Mall Road" in review["agent_events"][-1]["content"]
     mock_mcp.submit_found_child_report.assert_not_called()
     state["submission_confirmed"] = True
     res = await submit_found_child(state)
@@ -253,6 +254,23 @@ async def test_node_submit_found_child():
     assert first_key
     await submit_found_child(state)
     assert mock_mcp.submit_found_child_report.call_args.kwargs["report"].submission_id == first_key
+
+
+@pytest.mark.asyncio
+async def test_found_report_review_includes_collected_details():
+    state = initial_state("review-details")
+    state["found_child_report"] = FoundChildReport(
+        found_location="Market", approx_age=AgeRange(min=5, max=7),
+        clothing=["red shirt"], identifying_features=["glasses"],
+        authorities_contacted=False, reporter_contact="synthetic@example.invalid",
+    )
+    result = await submit_found_child(state)
+    summary = result["agent_events"][-1]["content"]
+    assert "Approximate age: 5–7" in summary
+    assert "Clothing: red shirt" in summary
+    assert "Visible features: glasses" in summary
+    assert "Authorities contacted: no" in summary
+    assert "synthetic@example.invalid" in summary
 
 
 @pytest.mark.asyncio

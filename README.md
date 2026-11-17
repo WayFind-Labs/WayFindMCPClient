@@ -224,3 +224,5 @@ candidate matching; regional contacts are used only where verified.
 reference for the dedicated receipt UI.
 The `FoundChildIntakeV1` report and receipt event share an explicit schema
 version; age and height bounds match the gateway contract.
+The pre-submit review includes known age, appearance, location, time,
+circumstances, authority-contact status and optional reporter details.

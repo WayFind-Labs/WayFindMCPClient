@@ -132,3 +132,4 @@ provider errors propagate to the agent.
 Runtime guidance is packaged and location neutral for found-child intake.
 The gateway receipt timestamp is passed through the agent event to the UI.
 Age/height bounds and the receipt version match the gateway intake contract.
+The submit node first emits a summary of known details for explicit review.

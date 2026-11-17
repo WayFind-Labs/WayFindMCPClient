@@ -163,3 +163,5 @@ matching or a province/city before collecting a report.
 The completed report event includes the backend timestamp for the UI receipt.
 The receipt carries `schema_version=FoundChildIntakeV1`, and agent age/height
 bounds align with gateway validation.
+The confirmation summary includes all known, relevant intake details before
+the write gate opens.
