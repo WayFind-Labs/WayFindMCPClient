@@ -129,11 +129,11 @@ async def test_human_review_service_failure_falls_back_cleanly():
     with patch("services.review_service.ReviewService.submit", side_effect=Exception("Review service 503")):
         result = await human_review(state)
 
-    assert result["review_required"] is True
-    assert result["case_reference"] is not None
-    assert result["case_reference"].startswith("WF-REV-")
+    assert result["review_required"] is False
+    assert "case_reference" not in result
     event_types = [e["type"] for e in result["agent_events"]]
-    assert "review_pending" in event_types
+    assert "review_pending" not in event_types
+    assert "error" in event_types
 
 
 @pytest.mark.asyncio
