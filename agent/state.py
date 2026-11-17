@@ -204,6 +204,7 @@ class WayfindState(TypedDict):
 
     # ── Per-turn form data ────────────────────────────────────────────────────
     last_form_data: dict[str, Any] | None
+    submission_confirmed: bool
     """Raw structured key-value data from a user_form_response event.
     Set by the route handler's _merge_event. Consumed by extract_structured_data.
     Reset to None after extraction.
@@ -262,6 +263,7 @@ def initial_state(session_id: str) -> WayfindState:
         final_response         = None,
         agent_events           = [],
         last_form_data         = None,
+        submission_confirmed   = False,
         errors                 = [],
         tool_failures          = [],
     )

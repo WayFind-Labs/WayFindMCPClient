@@ -38,6 +38,8 @@ _CASE_REF_PATTERN = re.compile(r"\bWF-\d{8}-\d{4}\b", re.IGNORECASE)
 
 async def understand_intent(state: WayfindState) -> dict:
     """Detect intent from the current turn's user prompt."""
+    if state.get("submission_confirmed") and state.get("found_child_report"):
+        return {"intent": Intent.FOUND_CHILD}
     existing_intent = state.get("intent")
     # If an intent was already identified in a prior turn, preserve it during form fills / follow-ups
     if existing_intent and existing_intent != Intent.UNKNOWN:

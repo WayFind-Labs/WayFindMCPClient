@@ -212,3 +212,6 @@ failure if a committed backend receipt is unavailable; they never generate a
 local success reference.
 The agent attaches a stable submission key derived from the session so retrying
 the same report after a lost response reuses the database reference.
+The graph emits `request_confirmation` with a review summary before recording.
+Only the explicit `confirm_found_report` form action enables the write; a text
+correction or failed submission resets confirmation.

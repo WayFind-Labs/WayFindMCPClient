@@ -85,3 +85,4 @@ returns a validated backend receipt. Tool outages and missing configuration
 must remain errors, never local reference fallbacks.
 Retries within one session use the same submission ID. A distinct new report
 requires a distinct draft ID before recording.
+The found-report node requires an explicit confirmation event before a write.

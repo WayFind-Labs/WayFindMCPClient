@@ -154,3 +154,5 @@ wrapper, tool and downstream HTTP client.
 The submit node attaches a stable per-session submission ID for database
 idempotency. A deliberate second report in one session requires a distinct
 draft ID in the future conversation state design.
+The report node emits a summary and waits for explicit confirmation. Failure
+or correction resets the confirmation flag.

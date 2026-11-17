@@ -188,7 +188,7 @@ async def test_nodes_with_wired_clients(llm, mcp):
     found_state["found_child_report"] = FoundChildReport(found_location="Bus Stand")
     out_submit = await submit_found_child(found_state)
     assert "case_reference" not in out_submit
-    assert any(e.get("type") == "error" for e in out_submit["agent_events"])
+    assert any(e.get("type") == "request_confirmation" for e in out_submit["agent_events"])
 
     # 6. search_support node
     sup_state = initial_state("test-sup")

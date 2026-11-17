@@ -241,6 +241,10 @@ async def test_node_submit_found_child():
 
     state = initial_state("s15")
     state["found_child_report"] = FoundChildReport(found_location="Mall Road")
+    review = await submit_found_child(state)
+    assert any(event["type"] == "request_confirmation" for event in review["agent_events"])
+    mock_mcp.submit_found_child_report.assert_not_called()
+    state["submission_confirmed"] = True
     res = await submit_found_child(state)
     assert res["case_reference"] == "WF-FOUND-999"
     first_key = mock_mcp.submit_found_child_report.call_args.kwargs["report"].submission_id

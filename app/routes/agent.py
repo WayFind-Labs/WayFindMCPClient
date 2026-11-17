@@ -160,6 +160,7 @@ def _merge_event(state: dict[str, Any], event: IncomingEvent) -> dict[str, Any]:
 
     if event.type == "user_message":
         content = event.content or ""
+        state["submission_confirmed"] = False
         state["user_prompt"] = content
         state["conversation_history"] = state.get("conversation_history", []) + [
             {"role": "user", "content": content}
@@ -177,6 +178,8 @@ def _merge_event(state: dict[str, Any], event: IncomingEvent) -> dict[str, Any]:
     elif event.type == "user_form_response":
         # form_data keys are field names (e.g. "age", "clothing")
         form = event.form_data or {}
+        if form.get("confirm_found_report") is True:
+            state["submission_confirmed"] = True
         # Build a human-readable summary for the conversation history
         summary = "; ".join(f"{k}: {v}" for k, v in form.items())
         state["user_prompt"] = summary
@@ -227,6 +230,7 @@ def _initial_state(session_id: str) -> dict[str, Any]:
         "final_response":          None,
         "agent_events":            [],   # v2: accumulated output events per turn
         "last_form_data":          None,
+        "submission_confirmed":   False,
         "errors":                  [],
         "tool_failures":           [],
     }

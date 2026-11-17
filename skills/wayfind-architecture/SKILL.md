@@ -125,3 +125,5 @@ $$\text{Search Time Range } = [T_{\text{lost}} - \Delta t_{\text{buffer}}, \quad
 Agent node → MCP tool → PostgresClient → gateway internal report endpoint →
 PostgreSQL. `POSTGRES_SERVICE_URL` and a shared internal API key are required.
 The submit node derives a stable per-session submission ID for retried writes.
+The graph pauses on `request_confirmation` until a form response with
+`confirm_found_report=true` arrives.

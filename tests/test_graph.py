@@ -272,6 +272,7 @@ async def test_graph_found_child_pipeline():
 
     state = initial_state("sess-fc-1")
     state["user_prompt"] = "I found a lost boy around 5 at Liberty Market"
+    state["submission_confirmed"] = True
 
     result = await run_agent(state)
 

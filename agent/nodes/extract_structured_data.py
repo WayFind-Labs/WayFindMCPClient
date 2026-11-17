@@ -43,6 +43,8 @@ logger = logging.getLogger(__name__)
 
 async def extract_structured_data(state: WayfindState) -> dict:
     """Merge latest user turn into structured criteria or report."""
+    if state.get("submission_confirmed") and (state.get("last_form_data") or {}).get("confirm_found_report") is True:
+        return {"last_form_data": None}
     intent = state.get("intent")
     llm = get_llm()
 

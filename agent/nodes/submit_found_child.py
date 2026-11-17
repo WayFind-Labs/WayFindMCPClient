@@ -70,6 +70,21 @@ async def submit_found_child(state: WayfindState) -> dict:
             "errors": state.get("errors", []) + ["submit_found_child: no report in state"],
         }
 
+    if not state.get("submission_confirmed"):
+        if isinstance(report, dict):
+            report = FoundChildReport(**report)
+        details = [f"Found near: {report.found_location}"]
+        if report.clothing:
+            details.append(f"Clothing: {', '.join(report.clothing)}")
+        if report.current_circumstances:
+            details.append(f"Current situation: {report.current_circumstances}")
+        return {
+            "agent_events": existing_events + [{
+                "type": "request_confirmation",
+                "content": "Please review this report before recording it. You can correct details in chat.\n" + "\n".join(details),
+            }],
+        }
+
     mcp = get_mcp_client()
 
     if mcp is not None:
@@ -94,6 +109,7 @@ async def submit_found_child(state: WayfindState) -> dict:
             logger.error("submit_found_child MCP call failed: %s", exc)
             return {
                 "agent_events":  existing_events + [{"type": "error", "message": _FAILURE_MSG}],
+                "submission_confirmed": False,
                 "tool_failures": state.get("tool_failures", []) + [_TOOL_NAME],
                 "errors":        state.get("errors", []) + [str(exc)],
             }
@@ -101,6 +117,7 @@ async def submit_found_child(state: WayfindState) -> dict:
     logger.error("Session %s: found-child submission unavailable: MCP client missing", state.get("session_id"))
     return {
         "agent_events": existing_events + [{"type": "error", "message": _FAILURE_MSG}],
+        "submission_confirmed": False,
         "tool_failures": state.get("tool_failures", []) + [_TOOL_NAME],
         "errors": state.get("errors", []) + ["submit_found_child: MCP client unavailable"],
     }

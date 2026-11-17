@@ -104,6 +104,7 @@ async def test_submit_found_child_tool_failure_handling():
 
     state = initial_state("sess-fail-fc")
     state["found_child_report"] = FoundChildReport(found_location="Liberty Market")
+    state["submission_confirmed"] = True
 
     result = await submit_found_child(state)
 
