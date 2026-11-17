@@ -132,3 +132,16 @@ async def test_found_child_structured_fields_map_to_canonical_report():
     assert report.current_circumstances == "distressed"
     assert report.identifying_features == ["glasses"]
     assert report.found_at == "2026-11-17T10:00:00+05:00"
+@pytest.mark.asyncio
+async def test_configured_provider_failure_never_uses_heuristic_found_extraction():
+    from unittest.mock import MagicMock, AsyncMock
+    from mcp_client.llm import WayfindLLM
+
+    llm = WayfindLLM(provider="gemini", api_key="")
+    llm.api_key = "configured-test-key"
+    llm._llm = MagicMock()
+    llm._llm.with_structured_output.return_value.ainvoke = AsyncMock(
+        side_effect=ConnectionError("provider unavailable")
+    )
+    with pytest.raises(RuntimeError, match="Found-child extraction model unavailable"):
+        await llm.extract_found_child_report(None, "I found a child near the market")

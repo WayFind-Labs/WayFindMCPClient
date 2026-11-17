@@ -254,9 +254,13 @@ class WayfindLLM:
                 result: IntentResult = await structured_llm.ainvoke(messages)
                 return result
             except Exception as exc:
-                logger.warning("LLM extract_intent call failed, falling back to heuristics: %s", exc)
+                if self.api_key:
+                    raise RuntimeError("Intent model unavailable") from exc
+                logger.warning("LLM extract_intent call failed in demo mode: %s", exc)
 
         # 2. Heuristic fallback
+        if self.api_key:
+            raise RuntimeError("Intent model unavailable")
         return self._heuristic_extract_intent(conversation_history, prompt)
 
     def _heuristic_extract_intent(
@@ -416,9 +420,13 @@ class WayfindLLM:
                     current = current.model_copy(update=updates)
                 return current
             except Exception as exc:
-                logger.warning("LLM extract_child_criteria failed, falling back to heuristics: %s", exc)
+                if self.api_key:
+                    raise RuntimeError("Child criteria model unavailable") from exc
+                logger.warning("LLM extract_child_criteria failed in demo mode: %s", exc)
 
         # Fallback heuristic merge
+        if self.api_key:
+            raise RuntimeError("Child criteria model unavailable")
         return self._heuristic_merge_missing(current, prompt)
 
     def _merge_form_data_missing(
@@ -572,9 +580,13 @@ class WayfindLLM:
                     current = current.model_copy(update=llm_updates)
                 return current
             except Exception as exc:
-                logger.warning("LLM extract_found_child_report failed, falling back: %s", exc)
+                if self.api_key:
+                    raise RuntimeError("Found-child extraction model unavailable") from exc
+                logger.warning("LLM extract_found_child_report failed in demo mode: %s", exc)
 
         # Fallback heuristic
+        if self.api_key:
+            raise RuntimeError("Found-child extraction model unavailable")
         return self._heuristic_merge_found(current, prompt)
 
     def _heuristic_merge_found(

@@ -86,3 +86,4 @@ must remain errors, never local reference fallbacks.
 Retries within one session use the same submission ID. A distinct new report
 requires a distinct draft ID before recording.
 The found-report node requires an explicit confirmation event before a write.
+Configured model failures must not fall back to keyword extraction.

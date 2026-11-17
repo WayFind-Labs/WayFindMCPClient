@@ -215,3 +215,5 @@ the same report after a lost response reuses the database reference.
 The graph emits `request_confirmation` with a review summary before recording.
 Only the explicit `confirm_found_report` form action enables the write; a text
 correction or failed submission resets confirmation.
+When an LLM API key is configured, intent and structured extraction failures
+surface as errors. Keyword heuristics remain only in no-key development mode.
