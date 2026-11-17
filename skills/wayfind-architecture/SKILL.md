@@ -129,3 +129,4 @@ The graph pauses on `request_confirmation` until a form response with
 `confirm_found_report=true` arrives.
 The LLM wrapper uses heuristics only when no API key is configured; configured
 provider errors propagate to the agent.
+Runtime guidance is packaged and location neutral for found-child intake.

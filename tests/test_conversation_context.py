@@ -30,7 +30,7 @@ def test_knowledge_loads_outside_checkout(monkeypatch, tmp_path):
     monkeypatch.chdir(tmp_path)
     load_conversation_guidance.cache_clear()
     text = load_conversation_guidance()
-    assert "pk-found-child-v1" in text
+    assert "found-child-intake-v2" in text
     assert "Conversation audio recording and transcription are POST-MVP and disabled" in text
     assert "Do not take the child home" in text
 

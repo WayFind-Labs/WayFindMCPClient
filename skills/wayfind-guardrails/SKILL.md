@@ -87,3 +87,4 @@ Retries within one session use the same submission ID. A distinct new report
 requires a distinct draft ID before recording.
 The found-report node requires an explicit confirmation event before a write.
 Configured model failures must not fall back to keyword extraction.
+Do not assume Pakistan from a found-child report; location is a case fact.

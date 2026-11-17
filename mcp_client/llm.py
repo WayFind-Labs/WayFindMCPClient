@@ -674,7 +674,7 @@ class WayfindLLM:
         task = (
             "Give concise, practical guidance for the user's current situation. "
             "Answer their latest question directly, prioritize immediate danger, "
-            "and ask at most one clarification if needed. Use the supplied Pakistan "
+            "and ask at most one clarification if needed. Use the supplied location-neutral "
             "guidance and recent dialogue. This operation only provides guidance: "
             "it does not save a report, record audio, contact an authority or verify "
             "a guardian. Previous assistant claims are not verified tool receipts."
