@@ -74,7 +74,7 @@ async def test_submit_found_child_report_success():
     report = FoundChildReport(
         gender="female",
         found_location="G-9 Markaz Islamabad",
-        clothing_description="Red sweater and white shoes",
+        clothing=["Red sweater", "white shoes"],
     )
     receipt = FoundChildSubmissionResult(
         case_reference="WF-FOUND-TEST", submitted_at="2026-11-17T00:00:00Z",

@@ -102,7 +102,7 @@ async def submit_found_child(state: WayfindState) -> dict:
             return {
                 "case_reference": case_ref,
                 "agent_events":   existing_events + [
-                    {"type": "submission_complete", "record_id": case_ref, "submitted_at": submitted_at},
+                    {"type": "submission_complete", "record_id": case_ref, "submitted_at": submitted_at, "schema_version": "FoundChildIntakeV1"},
                     {"type": "assistant_message", "content": _SUCCESS_MSG.format(ref=case_ref)},
                 ],
             }

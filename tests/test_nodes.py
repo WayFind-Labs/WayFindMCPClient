@@ -248,6 +248,7 @@ async def test_node_submit_found_child():
     res = await submit_found_child(state)
     assert res["case_reference"] == "WF-FOUND-999"
     assert next(event for event in res["agent_events"] if event["type"] == "submission_complete")["submitted_at"] == "2026-11-17T00:00:00Z"
+    assert next(event for event in res["agent_events"] if event["type"] == "submission_complete")["schema_version"] == "FoundChildIntakeV1"
     first_key = mock_mcp.submit_found_child_report.call_args.kwargs["report"].submission_id
     assert first_key
     await submit_found_child(state)

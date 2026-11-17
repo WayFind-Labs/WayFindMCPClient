@@ -161,3 +161,5 @@ regex/keyword fallback; no-key mode retains legacy demo heuristics.
 The found-child runtime policy is location neutral and does not require
 matching or a province/city before collecting a report.
 The completed report event includes the backend timestamp for the UI receipt.
+The receipt carries `schema_version=FoundChildIntakeV1`, and agent age/height
+bounds align with gateway validation.

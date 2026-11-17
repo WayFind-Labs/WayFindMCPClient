@@ -12,7 +12,7 @@ Design rules (enforced via docstrings + comments, not validators):
 
 from __future__ import annotations
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class AgeRange(BaseModel):
@@ -23,9 +23,9 @@ class AgeRange(BaseModel):
     All three fields may be None if age is completely unknown.
     """
 
-    min: int | None = Field(default=None, ge=0, le=120, description="Lower bound of age range (inclusive).")
-    max: int | None = Field(default=None, ge=0, le=120, description="Upper bound of age range (inclusive).")
-    exact: int | None = Field(default=None, ge=0, le=120, description="Exact age — set ONLY when user gave a precise number.")
+    min: int | None = Field(default=None, ge=0, le=18, description="Lower bound of age range (inclusive).")
+    max: int | None = Field(default=None, ge=0, le=18, description="Upper bound of age range (inclusive).")
+    exact: int | None = Field(default=None, ge=0, le=18, description="Exact age — set ONLY when user gave a precise number.")
 
 
 class HeightRange(BaseModel):
@@ -94,6 +94,8 @@ class FoundChildReport(BaseModel):
     jurisdiction: str | None = Field(default=None, description="Country/province/city context when known; never inferred by the model.")
     submission_id: str | None = Field(default=None, description="Client-generated idempotency key for a confirmed draft.")
     received_at: str | None = Field(default=None, description="Server receipt timestamp; populated by the receiving service.")
+    model_config = ConfigDict(extra="forbid")
+
     approx_age: AgeRange = Field(default_factory=AgeRange, description="Approximate age of the found child.")
     gender: str | None = Field(
         default=None,

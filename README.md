@@ -222,3 +222,5 @@ finder's reported location without requiring a Pakistan province or running
 candidate matching; regional contacts are used only where verified.
 `submission_complete` carries the committed backend timestamp and Wayfind
 reference for the dedicated receipt UI.
+The `FoundChildIntakeV1` report and receipt event share an explicit schema
+version; age and height bounds match the gateway contract.
