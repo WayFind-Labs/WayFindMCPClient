@@ -142,3 +142,6 @@ validated `FoundChildReport`, including age ranges.
 Fresh text turns are reclassified so guidance questions can interrupt intake;
 form answers retain the active draft intent. Groq structured extraction uses
 JSON Schema mode rather than function calling.
+The first found-child turn emits reviewed immediate-danger guidance before a
+missing-location question; `found_safety_delivered` persists across turns so
+the initial safety message is not repeated.

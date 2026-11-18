@@ -32,6 +32,8 @@ context. This current MVP policy takes precedence over aspirational wording belo
 - Fresh text turns are reclassified so a safety question can interrupt intake;
   Groq structured extraction uses JSON Schema mode. Form responses stay with
   the active draft. No-key development still contains legacy heuristics.
+- The first found-child assistant turn states immediate-danger actions before
+  requesting location; a session flag prevents repeating this initial notice.
 - Wider audit fixes remain pending, including legacy heuristic routing, static
   success messages and report persistence. Prompt instructions alone do not
   enforce database/authentication/notification guarantees.

@@ -95,6 +95,9 @@ class WayfindState(TypedDict):
     turn_count: int
     """Number of turns completed so far (incremented by the route handler before graph runs)."""
 
+    found_safety_delivered: bool
+    """Whether the initial found-child safety action was delivered in this session."""
+
     # ── Intent detection ──────────────────────────────────────────────────────
     intent: Intent | None
     """Detected intent from the understand_intent node. None until first turn completes."""
@@ -243,6 +246,7 @@ def initial_state(session_id: str) -> WayfindState:
         user_prompt            = "",
         conversation_history   = [],
         turn_count             = 0,
+        found_safety_delivered = False,
         intent                 = None,
         intent_confidence      = None,
         child_search_criteria  = None,

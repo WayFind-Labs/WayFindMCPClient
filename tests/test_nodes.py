@@ -105,6 +105,23 @@ def test_node_ask_followup():
     assert "request_information" in types
 
 
+def test_first_found_followup_delivers_safety_before_location_request():
+    state = initial_state("first-found-followup")
+    state["intent"] = Intent.FOUND_CHILD
+    state["followup_question"] = "Where did you find the child?"
+    state["missing_information"] = ["found_location"]
+    first = ask_followup(state)
+    assert first["agent_events"][0]["type"] == "assistant_message"
+    assert "immediate danger" in first["agent_events"][0]["content"]
+    assert first["agent_events"][1]["content"] == "Where did you find the child?"
+    assert first["agent_events"][2]["type"] == "request_information"
+    assert first["found_safety_delivered"] is True
+
+    state["found_safety_delivered"] = True
+    later = ask_followup(state)
+    assert len(later["agent_events"]) == 2
+
+
 def test_node_route_intent():
     state = initial_state("s5")
     res = route_intent(state)
@@ -229,6 +246,19 @@ async def test_node_safety_guidance():
     res = await safety_guidance(state)
     assert len(res["agent_events"]) == 1
     assert "police" in res["agent_events"][0]["content"].lower()
+
+
+@pytest.mark.asyncio
+async def test_found_safety_survives_model_outage():
+    unavailable_llm = MagicMock()
+    unavailable_llm.generate_guidance_response = AsyncMock(side_effect=TimeoutError())
+    set_llm(unavailable_llm)
+    state = initial_state("found-model-outage")
+    state["intent"] = Intent.FOUND_CHILD
+    res = await safety_guidance(state)
+    assert "immediate danger" in res["agent_events"][0]["content"]
+    assert "unavailable" in res["agent_events"][1]["content"]
+    assert res["found_safety_delivered"] is True
 
 
 @pytest.mark.asyncio

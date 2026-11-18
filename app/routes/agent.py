@@ -210,6 +210,7 @@ def _initial_state(session_id: str) -> dict[str, Any]:
         "user_prompt":             "",
         "conversation_history":    [],
         "turn_count":              0,
+        "found_safety_delivered":  False,
         "intent":                  None,
         "intent_confidence":       None,
         "child_search_criteria":   None,

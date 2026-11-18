@@ -30,7 +30,8 @@ from __future__ import annotations
 
 import logging
 
-from agent.state import WayfindState
+from agent.state import Intent, WayfindState
+from mcp_client.conversation_context import INITIAL_FOUND_SAFETY
 
 logger = logging.getLogger(__name__)
 
@@ -52,20 +53,26 @@ def ask_followup(state: WayfindState) -> dict:
     # Build new events (appended to existing agent_events)
     existing_events = state.get("agent_events", [])
 
-    new_events = [
-        {"type": "assistant_message", "content": question},
-    ]
+    first_found_turn = state.get("intent") == Intent.FOUND_CHILD and not state.get("found_safety_delivered")
+    new_events = []
+    if first_found_turn:
+        new_events.append({"type": "assistant_message", "content": INITIAL_FOUND_SAFETY})
+    new_events.append({"type": "assistant_message", "content": question})
     if missing:
         new_events.append({"type": "request_information", "fields": missing})
 
     # Append assistant turn to conversation history
     updated_history = state.get("conversation_history", []) + [
+        *([{"role": "assistant", "content": INITIAL_FOUND_SAFETY}] if first_found_turn else []),
         {"role": "assistant", "content": question}
     ]
 
-    return {
+    updates = {
         "agent_events":           existing_events + new_events,
         "final_response":         question,
         "conversation_history":   updated_history,
         "followup_question":      None,   # consumed — reset for next turn
     }
+    if first_found_turn:
+        updates["found_safety_delivered"] = True
+    return updates

@@ -55,3 +55,10 @@ UNAVAILABLE_GUIDANCE = (
     "child-protection services directly; seek emergency medical help if needed. "
     "This guidance does not mean a report has been saved or anyone notified."
 )
+
+INITIAL_FOUND_SAFETY = (
+    "Is the child in immediate danger or hurt? If so, call the appropriate "
+    "local emergency service now. Stay with the child in a safe, visible "
+    "public place. Do not take them home or share their photo or location "
+    "online. A Wayfind conversation does not contact authorities."
+)

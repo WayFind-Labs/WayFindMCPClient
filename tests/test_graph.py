@@ -242,6 +242,26 @@ async def test_graph_missing_child_with_image_runs_image_match():
 
 
 @pytest.mark.asyncio
+async def test_found_child_without_location_sees_safety_before_intake():
+    mock_llm = MagicMock()
+    mock_llm.extract_intent = AsyncMock(
+        return_value=MagicMock(intent=Intent.FOUND_CHILD, confidence=0.98)
+    )
+    mock_llm.extract_found_child_report = AsyncMock(return_value=FoundChildReport(found_location="unknown"))
+    mock_llm.generate_followup_question = AsyncMock(return_value="Where did you find the child?")
+    set_llm(mock_llm)
+
+    state = initial_state("found-no-location")
+    state["user_prompt"] = "I found an unaccompanied child."
+    result = await run_agent(state)
+    events = result["agent_events"]
+    assert "immediate danger" in events[0]["content"]
+    assert events[1]["content"] == "Where did you find the child?"
+    assert events[2]["type"] == "request_information"
+    assert result["found_safety_delivered"] is True
+
+
+@pytest.mark.asyncio
 async def test_graph_found_child_pipeline():
     """Found child intent extracts report, gets safety guidance, and submits found child report."""
     mock_llm = MagicMock()

@@ -224,6 +224,10 @@ When an LLM API key is configured, intent and structured extraction failures
 surface as errors. Keyword heuristics remain only in no-key development mode.
 Fresh text turns are reclassified, allowing guidance questions to interrupt an
 active intake; structured form answers remain attached to their active draft.
+For the first found-child turn, reviewed immediate-danger guidance precedes
+the intake question even when the location is missing. A session flag prevents
+repeating that initial safety message; model guidance failures retain static
+safety help.
 Groq extraction uses JSON Schema output for the configured GPT OSS model rather
 than function calling. The interruption and extraction paths have a synthetic
 live Groq rehearsal.

@@ -165,6 +165,9 @@ regex/keyword fallback; no-key mode retains legacy demo heuristics.
 Fresh text turns are reclassified, so a guidance question can interrupt a
 found-child intake. Groq structured extraction uses JSON Schema output instead
 of function calling, verified by synthetic live intent/extraction tests.
+The first found-child assistant turn emits reviewed safety actions before a
+missing-location question, with a persisted `found_safety_delivered` flag.
+Model guidance timeout still returns static safety help.
 The found-child runtime policy is location neutral and does not require
 matching or a province/city before collecting a report.
 The completed report event includes the backend timestamp for the UI receipt.

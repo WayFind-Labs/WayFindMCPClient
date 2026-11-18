@@ -9,8 +9,8 @@ from __future__ import annotations
 import logging
 
 from agent.dependencies import get_llm
-from agent.state import WayfindState
-from mcp_client.conversation_context import UNAVAILABLE_GUIDANCE
+from agent.state import Intent, WayfindState
+from mcp_client.conversation_context import INITIAL_FOUND_SAFETY, UNAVAILABLE_GUIDANCE
 
 logger = logging.getLogger(__name__)
 
@@ -28,8 +28,12 @@ async def safety_guidance(state: WayfindState) -> dict:
             # Do not log raw prompts, locations, provider bodies or keys.
             logger.warning("Contextual guidance unavailable; returning static safety help")
 
-    return {
-        "agent_events": state.get("agent_events", []) + [
-            {"type": "assistant_message", "content": guidance_text}
-        ]
-    }
+    first_found_turn = state.get("intent") == Intent.FOUND_CHILD and not state.get("found_safety_delivered")
+    events = state.get("agent_events", []) + (
+        [{"type": "assistant_message", "content": INITIAL_FOUND_SAFETY}] if first_found_turn else []
+    )
+    events.append({"type": "assistant_message", "content": guidance_text})
+    updates = {"agent_events": events}
+    if first_found_turn:
+        updates["found_safety_delivered"] = True
+    return updates
