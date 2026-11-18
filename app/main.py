@@ -142,7 +142,7 @@ def create_app() -> FastAPI:
 
     # ── Routers ────────────────────────────────────────────────────────────────
     app.include_router(agent_router, prefix="/internal")
-    _add_health_route(app)
+    _add_health_route(app, settings)
 
     return app
 
@@ -221,10 +221,59 @@ def _register_exception_handlers(app: FastAPI) -> None:
 
 # ── Health endpoint (auth-exempt) ──────────────────────────────────────────────
 
-def _add_health_route(app: FastAPI) -> None:
+def _add_health_route(app: FastAPI, settings) -> None:
     @app.get("/health", include_in_schema=False)
     async def health() -> dict:
         return {"status": "ok", "service": "wayfind-agent"}
+
+    @app.get("/ready", include_in_schema=False)
+    async def ready() -> JSONResponse:
+        """Check required configuration and bounded runtime dependencies."""
+        missing: list[str] = []
+        if settings.shelter_backend_api_key == "changeme-dev-secret":
+            missing.append("SHELTER_BACKEND_API_KEY")
+        provider_key = {
+            "groq": settings.groq_api_key,
+            "gemini": settings.gemini_api_key,
+            "openai": settings.openai_api_key,
+        }.get(settings.llm_provider, "")
+        if not provider_key or provider_key.startswith("your-"):
+            missing.append(f"{settings.llm_provider.upper()}_API_KEY")
+        if not settings.llm_model:
+            missing.append("LLM_MODEL")
+        if not settings.postgres_service_url:
+            missing.append("POSTGRES_SERVICE_URL")
+        if settings.session_backend != "redis" or not settings.redis_url:
+            missing.append("REDIS_URL")
+        if settings.mcp_transport != "sse" or not settings.mcp_server_url:
+            missing.append("MCP_SERVER_URL")
+        if missing:
+            return JSONResponse(status_code=503, content={"status": "not_ready", "missing": missing})
+
+        llm = getattr(app.state, "llm", None)
+        session_store = getattr(app.state, "session_store", None)
+        if llm is None or llm._llm is None or session_store is None:
+            return JSONResponse(status_code=503, content={"status": "not_ready", "dependency": "agent_runtime"})
+
+        try:
+            import asyncio
+            redis = await asyncio.wait_for(session_store._ensure_client(), timeout=3)
+            await asyncio.wait_for(redis.ping(), timeout=3)
+            await _probe_mcp(settings.mcp_server_url)
+        except Exception:
+            return JSONResponse(status_code=503, content={"status": "not_ready", "dependency": "redis_or_mcp"})
+        return JSONResponse(status_code=200, content={"status": "ready"})
+
+
+async def _probe_mcp(url: str) -> None:
+    """Confirm the configured SSE endpoint responds before accepting intake."""
+    import httpx
+
+    async with httpx.AsyncClient(timeout=3, follow_redirects=True) as client:
+        async with client.stream(
+            "GET", url, headers={"Accept": "text/event-stream"}
+        ) as response:
+            response.raise_for_status()
 
 
 # ── Module-level app instance (used by uvicorn) ────────────────────────────────

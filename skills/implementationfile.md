@@ -163,6 +163,9 @@ no longer fabricate an `under_review` status when the backend fails.
 The agent now gates missing-child search, registration and shelter-search
 intents before extraction/search under `ENABLE_DEFERRED_FEATURES=false`.
 Both agent and gateway flags require explicit activation for roadmap work.
+The agent `/ready` endpoint is authenticated and checks nondefault credentials,
+provider/model configuration, initialized model, Redis and MCP SSE reachability.
+The gateway probes agent `/ready` instead of process-only `/health`.
 Live provider intent/extraction errors now propagate instead of invoking
 regex/keyword fallback; no-key mode retains legacy demo heuristics.
 Fresh text turns are reclassified, so a guidance question can interrupt a

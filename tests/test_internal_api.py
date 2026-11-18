@@ -7,9 +7,13 @@ Tests for the internal API contract (Phase 15):
 
 from __future__ import annotations
 
+from types import SimpleNamespace
+from unittest.mock import AsyncMock
+
 import pytest
 from httpx import ASGITransport, AsyncClient
 
+from app.config import Settings
 from app.main import create_app
 
 INTERNAL_KEY = "changeme-dev-secret"
@@ -26,6 +30,51 @@ async def test_internal_api_health_endpoint():
         data = res.json()
         assert data["status"] == "ok"
         assert data["service"] == "wayfind-agent"
+
+
+@pytest.mark.asyncio
+async def test_agent_readiness_rejects_missing_configuration(monkeypatch):
+    settings = Settings(
+        _env_file=None,
+        groq_api_key="",
+        postgres_service_url="",
+        session_backend="memory",
+        mcp_server_url="",
+    )
+    monkeypatch.setattr("app.main.get_settings", lambda: settings)
+    app = create_app()
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        assert (await client.get("/ready")).status_code == 403
+        response = await client.get("/ready", headers={"X-Internal-Key": settings.shelter_backend_api_key})
+    assert response.status_code == 503
+    assert "GROQ_API_KEY" in response.json()["missing"]
+    assert "REDIS_URL" in response.json()["missing"]
+
+
+@pytest.mark.asyncio
+async def test_agent_readiness_checks_redis_and_mcp(monkeypatch):
+    settings = Settings(
+        _env_file=None,
+        shelter_backend_api_key="synthetic-internal-key",
+        groq_api_key="synthetic-provider-key",
+        postgres_service_url="http://gateway.internal",
+        session_backend="redis",
+        redis_url="redis://example.invalid:6379/0",
+        mcp_transport="sse",
+        mcp_server_url="http://mcp.internal/sse",
+    )
+    monkeypatch.setattr("app.main.get_settings", lambda: settings)
+    probe = AsyncMock()
+    monkeypatch.setattr("app.main._probe_mcp", probe)
+    redis = SimpleNamespace(ping=AsyncMock(return_value=True))
+    app = create_app()
+    app.state.llm = SimpleNamespace(_llm=object())
+    app.state.session_store = SimpleNamespace(_ensure_client=AsyncMock(return_value=redis))
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        response = await client.get("/ready", headers={"X-Internal-Key": settings.shelter_backend_api_key})
+    assert response.status_code == 200
+    redis.ping.assert_awaited_once()
+    probe.assert_awaited_once_with(settings.mcp_server_url)
 
 
 @pytest.mark.asyncio

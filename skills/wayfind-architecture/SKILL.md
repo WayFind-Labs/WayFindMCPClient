@@ -141,6 +141,9 @@ With `ENABLE_DEFERRED_FEATURES=false`, the agent routes typed missing-child,
 registration and shelter-search requests to an unavailable-feature response
 before extraction or synthetic candidate search. Roadmap graph branches remain
 behind the flag for later activation.
+The internal agent exposes `/health` for liveness and authenticated `/ready`
+for nondefault credentials, initialized model, Redis ping and MCP SSE endpoint.
+The gateway uses `/ready` with the shared internal key.
 The LLM's structured found-child extraction merges corrections into a
 validated `FoundChildReport`, including age ranges.
 Fresh text turns are reclassified so guidance questions can interrupt intake;

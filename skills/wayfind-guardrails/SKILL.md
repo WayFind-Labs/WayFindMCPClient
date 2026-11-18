@@ -25,6 +25,8 @@ context. This current MVP policy takes precedence over aspirational wording belo
 - The agent blocks missing-child search, registration and shelter-search graph
   paths by default before extraction or candidate search; re-enable only after
   their separate public-use gates are verified.
+- The internal agent's authenticated `/ready` reports missing provider/model,
+  Redis and MCP dependencies as not ready. `/health` is liveness only.
 - Use sourced regional contacts; do not present 1098 as a universal Pakistan
   child helpline or 1099 as emergency medical dispatch.
 - Stay visible and seek official help; do not advise private transport or handing

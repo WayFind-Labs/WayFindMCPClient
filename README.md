@@ -222,6 +222,10 @@ of inventing an active review state.
 registration and shelter-search turns before extraction or search. The graph
 retains those branches for later work, but both agent and gateway gates must
 be enabled before any roadmap feature can be activated.
+`/health` is process liveness. Authenticated `/ready` returns 503 unless the
+nondefault internal key, provider key/model, gateway URL, Redis session store
+and MCP SSE endpoint are configured and the initialized model, Redis ping and
+MCP endpoint respond. The gateway calls this route with `X-Internal-Key`.
 Only the explicit `confirm_found_report` form action enables the write; a text
 correction or failed submission resets confirmation.
 When an LLM API key is configured, intent and structured extraction failures
