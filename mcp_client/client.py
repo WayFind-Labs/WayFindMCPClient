@@ -273,13 +273,7 @@ class WayfindMCPClient:
                 except Exception:
                     pass
 
-        # Fallback status
-        return CaseStatusResult(
-            case_reference=case_reference,
-            status="under_review",
-            public_message="Your report has been received and is undergoing human review by child protection staff.",
-            next_steps=["Keep your contact phone active", "Report any new sightings to authorities"],
-        )
+        raise ValueError("Case status service returned no valid result")
 
     # ── Internal Tool Dispatcher ──────────────────────────────────────────────
 

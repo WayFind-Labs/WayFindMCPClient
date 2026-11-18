@@ -158,6 +158,8 @@ The report node emits a summary and waits for explicit confirmation. Failure
 or correction resets the confirmation flag.
 Committed-report and generic tool-failure messages no longer imply staff
 review, matching, callback or staff notification.
+The public case-status branch is deferred, and its internal MCP/HTTP adapters
+no longer fabricate an `under_review` status when the backend fails.
 Live provider intent/extraction errors now propagate instead of invoking
 regex/keyword fallback; no-key mode retains legacy demo heuristics.
 Fresh text turns are reclassified, so a guidance question can interrupt a

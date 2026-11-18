@@ -20,6 +20,8 @@ context. This current MVP policy takes precedence over aspirational wording belo
   is encrypted or a report is durably committed without verified evidence.
 - Committed-report copy states only the Wayfind record and direct-authority
   action; generic tool failures do not claim staff notification.
+- Public case-status lookup is deferred; internal status adapters fail closed
+  rather than inventing a review state or timestamps.
 - Use sourced regional contacts; do not present 1098 as a universal Pakistan
   child helpline or 1099 as emergency medical dispatch.
 - Stay visible and seek official help; do not advise private transport or handing

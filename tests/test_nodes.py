@@ -332,14 +332,7 @@ async def test_node_get_guidance():
 @pytest.mark.asyncio
 async def test_node_get_case_status():
     mock_mcp = MagicMock()
-    mock_mcp.get_case_status = AsyncMock(
-        return_value=MagicMock(
-            case_reference="WF-001",
-            status="pending",
-            last_updated="2026-09-25",
-            public_message="Under review",
-        )
-    )
+    mock_mcp.get_case_status = AsyncMock()
     set_mcp_client(mock_mcp)
 
     state = initial_state("s18")
@@ -347,6 +340,8 @@ async def test_node_get_case_status():
     res = await get_case_status_node(state)
     event_types = [e["type"] for e in res["agent_events"]]
     assert "assistant_message" in event_types
+    assert "cannot check report status" in res["agent_events"][0]["content"]
+    mock_mcp.get_case_status.assert_not_called()
 
 
 @pytest.mark.asyncio

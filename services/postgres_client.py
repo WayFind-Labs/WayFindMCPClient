@@ -11,8 +11,6 @@ Endpoints called:
 from __future__ import annotations
 
 import logging
-import uuid
-from datetime import UTC, datetime
 from functools import lru_cache
 
 import httpx
@@ -113,32 +111,12 @@ class PostgresClient:
     ) -> CaseStatusResult:
         """Retrieve public status of a case."""
         clean_ref = (case_reference or "").strip().upper()
-        now_iso = datetime.now(UTC).isoformat()
-
-        if self.base_url:
-            try:
-                client = self._get_client()
-                response = await client.get(f"/api/cases/{clean_ref}")
-                if response.status_code == 200:
-                    data = response.json()
-                    return CaseStatusResult.model_validate(data)
-            except Exception as exc:
-                logger.warning("PostgresClient get_public_case_status failed over HTTP: %s", exc)
-
-        return CaseStatusResult(
-            case_reference=clean_ref,
-            status="under_review",
-            submitted_at=now_iso,
-            last_updated_at=now_iso,
-            public_message=(
-                "Your report is currently undergoing active review by authorized child protection staff. "
-                "You will be contacted immediately if a verified match is confirmed."
-            ),
-            next_steps=[
-                "Keep your registered contact phone active",
-                "Report any new sightings or details to authorities with this reference number",
-            ],
-        )
+        if not self.base_url:
+            raise RuntimeError("POSTGRES_SERVICE_URL is required for case status")
+        client = self._get_client()
+        response = await client.get(f"/api/cases/{clean_ref}")
+        response.raise_for_status()
+        return CaseStatusResult.model_validate(response.json())
 
 
 @lru_cache(maxsize=1)

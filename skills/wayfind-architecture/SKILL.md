@@ -135,6 +135,8 @@ Age/height bounds and the receipt version match the gateway intake contract.
 The submit node first emits a summary of known details for explicit review.
 The committed-report message states only the Wayfind record and asks the
 finder to contact local authorities; generic tool failures claim no staff alert.
+The agent's public status branch explains the deferred lookup; internal status
+adapters fail closed on missing or failed downstream responses.
 The LLM's structured found-child extraction merges corrections into a
 validated `FoundChildReport`, including age ranges.
 Fresh text turns are reclassified so guidance questions can interrupt intake;

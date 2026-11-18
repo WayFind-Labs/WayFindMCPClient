@@ -72,8 +72,7 @@ async def test_tool_get_guidance():
 
 
 @pytest.mark.asyncio
-async def test_tool_get_case_status():
-    res = await get_case_status("WF-20260925-0042")
-    assert res.case_reference == "WF-20260925-0042"
-    assert res.status == "under_review"
-    assert res.status_label == "Under Review"
+async def test_tool_get_case_status(monkeypatch):
+    monkeypatch.setattr("services.postgres_client.get_postgres_client", lambda: None)
+    with pytest.raises(RuntimeError, match="unavailable"):
+        await get_case_status("WF-20260925-0042")

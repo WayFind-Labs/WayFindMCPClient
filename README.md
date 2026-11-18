@@ -215,6 +215,9 @@ the same report after a lost response reuses the database reference.
 The graph emits `request_confirmation` with a review summary before recording.
 The committed-report message does not claim staff review, matching or authority
 notification; tool-failure copy does not claim staff were notified.
+Public case-status lookup is deferred. The agent explains that limitation;
+internal status adapters reject missing or failed downstream results instead
+of inventing an active review state.
 Only the explicit `confirm_found_report` form action enables the write; a text
 correction or failed submission resets confirmation.
 When an LLM API key is configured, intent and structured extraction failures

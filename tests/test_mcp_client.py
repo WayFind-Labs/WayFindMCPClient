@@ -4,6 +4,7 @@ Unit tests for WayfindLLM and WayfindMCPClient (Phase 6).
 """
 
 import pytest
+import httpx
 
 from agent.dependencies import set_llm, set_mcp_client
 from agent.nodes.extract_structured_data import extract_structured_data
@@ -19,6 +20,7 @@ from mcp_client.client import WayfindMCPClient
 from mcp_client.llm import IntentResult, WayfindLLM
 from schemas.child import AgeRange, ChildSearchCriteria, FoundChildReport
 from schemas.location import Location
+from services.postgres_client import PostgresClient
 
 
 @pytest.fixture
@@ -148,10 +150,26 @@ async def test_mcp_get_guidance(mcp):
 
 @pytest.mark.asyncio
 async def test_mcp_get_case_status(mcp):
-    res = await mcp.get_case_status("WF-20260925-0042")
-    assert res.case_reference == "WF-20260925-0042"
-    assert res.status == "under_review"
-    assert res.status_label == "Under Review"
+    with pytest.raises(ValueError, match="no valid result"):
+        await mcp.get_case_status("WF-20260925-0042")
+
+
+@pytest.mark.asyncio
+async def test_status_backend_outage_never_becomes_under_review():
+    client = PostgresClient()
+    with pytest.raises(RuntimeError, match="POSTGRES_SERVICE_URL"):
+        await client.get_public_case_status("WF-20260925-0042")
+
+    client = PostgresClient(base_url="https://status.invalid")
+    client._client = httpx.AsyncClient(
+        base_url=client.base_url,
+        transport=httpx.MockTransport(lambda request: httpx.Response(503)),
+    )
+    try:
+        with pytest.raises(httpx.HTTPStatusError):
+            await client.get_public_case_status("WF-20260925-0042")
+    finally:
+        await client.close()
 
 
 # ── Node Integration with Wired Clients ─────────────────────────────────────

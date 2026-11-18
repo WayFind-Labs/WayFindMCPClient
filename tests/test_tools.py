@@ -144,10 +144,7 @@ async def test_get_guidance_generic():
 # ── Tool 6: get_case_status ───────────────────────────────────────────────────
 
 @pytest.mark.asyncio
-async def test_get_case_status_valid():
-    res = await get_case_status("WF-20260925-0042")
-    assert res.case_reference == "WF-20260925-0042"
-    assert res.status == "under_review"
-    assert res.status_label == "Under Review"
-    assert res.public_message
-    assert len(res.next_steps) > 0
+async def test_get_case_status_requires_backend(monkeypatch):
+    monkeypatch.setattr("services.postgres_client.get_postgres_client", lambda: None)
+    with pytest.raises(RuntimeError, match="unavailable"):
+        await get_case_status("WF-20260925-0042")
