@@ -158,6 +158,8 @@ over TLS; agent state keys use `wayfind:agent-state:` and gateway sessions use
 `wayfind:session:`. A synthetic live namespace/two-turn test passed.
 An authenticated internal snapshot route returns a minimal current review or
 committed receipt event for gateway-mediated refresh without exposing raw state.
+Receipt narration reflects irregular sole-admin review without a guaranteed
+response time or an automatic authority alert.
 The report node emits a summary and waits for explicit confirmation. Failure
 or correction resets the confirmation flag.
 Committed-report and generic tool-failure messages no longer imply staff

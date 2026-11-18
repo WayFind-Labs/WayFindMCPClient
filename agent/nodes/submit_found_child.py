@@ -37,6 +37,7 @@ logger = logging.getLogger(__name__)
 _TOOL_NAME = "submit_found_child_report"
 _SUCCESS_MSG = (
     "Your report was recorded in Wayfind. Reference number: {ref}.\n\n"
+    "Reports are reviewed irregularly, with no guaranteed monitoring or response time. "
     "This does not notify authorities or establish an official case. "
     "Please contact the appropriate local authority directly."
 )

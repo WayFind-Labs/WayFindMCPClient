@@ -282,7 +282,8 @@ async def test_node_submit_found_child():
     assert next(event for event in res["agent_events"] if event["type"] == "submission_complete")["schema_version"] == "FoundChildIntakeV1"
     receipt_text = next(event["content"] for event in res["agent_events"] if event["type"] == "assistant_message")
     assert "does not notify authorities" in receipt_text
-    assert "review" not in receipt_text.lower()
+    assert "reviewed irregularly" in receipt_text
+    assert "no guaranteed monitoring" in receipt_text
     first_key = mock_mcp.submit_found_child_report.call_args.kwargs["report"].submission_id
     assert first_key
     await submit_found_child(state)
