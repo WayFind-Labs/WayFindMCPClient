@@ -40,15 +40,14 @@ async def understand_intent(state: WayfindState) -> dict:
     """Detect intent from the current turn's user prompt."""
     if state.get("submission_confirmed") and state.get("found_child_report"):
         return {"intent": Intent.FOUND_CHILD}
-    existing_intent = state.get("intent")
-    # If an intent was already identified in a prior turn, preserve it during form fills / follow-ups
-    if existing_intent and existing_intent != Intent.UNKNOWN:
-        prompt_text = state.get("user_prompt", "").lower()
-        if state.get("last_form_data") or not any(w in prompt_text for w in ["cancel", "reset", "start over", "change topic", "exit"]):
-            logger.info("Session %s: Preserving active intent=%s", state.get("session_id"), existing_intent)
-            return {"intent": existing_intent}
-
     llm = get_llm()
+    existing_intent = state.get("intent")
+    # Structured form answers belong to the active draft. A fresh text turn
+    # must be classified so questions and topic shifts can interrupt intake.
+    if state.get("last_form_data") and existing_intent not in (None, Intent.UNKNOWN):
+        return {"intent": existing_intent}
+    if llm is None and existing_intent not in (None, Intent.UNKNOWN):
+        return {"intent": existing_intent}
 
 
     if llm is not None:
@@ -59,7 +58,7 @@ async def understand_intent(state: WayfindState) -> dict:
                 prompt=state["user_prompt"],
             )
             updates: dict = {
-                "intent": result.intent,
+                "intent": existing_intent if result.intent == Intent.UNKNOWN and existing_intent else result.intent,
                 "intent_confidence": result.confidence,
             }
             if result.intent == Intent.CASE_STATUS and result.case_reference:

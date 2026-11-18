@@ -20,6 +20,14 @@ async def test_live_groq_found_child_intake():
         prompt="I found an unaccompanied child near a synthetic market. I need to record a report.",
     )
     assert intent.intent == Intent.FOUND_CHILD
+    interruption = await llm.extract_intent(
+        conversation_history=[
+            {"role": "user", "content": "I found a child near a synthetic market."},
+            {"role": "assistant", "content": "Please tell me where you found the child."},
+        ],
+        prompt="Before that, can I post the child's photo online?",
+    )
+    assert interruption.intent == Intent.GUIDANCE
     report = await llm.extract_found_child_report(
         existing_report=None,
         prompt="I found a child around 6 to 8 years old near a synthetic market. They wore a red shirt.",

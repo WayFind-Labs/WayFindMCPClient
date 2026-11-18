@@ -274,6 +274,22 @@ async def test_found_report_review_includes_collected_details():
 
 
 @pytest.mark.asyncio
+async def test_found_child_question_interrupts_intake():
+    mock_llm = MagicMock()
+    mock_llm.extract_intent = AsyncMock(
+        return_value=MagicMock(intent=Intent.GUIDANCE, confidence=0.95)
+    )
+    set_llm(mock_llm)
+    state = initial_state("question-during-intake")
+    state["intent"] = Intent.FOUND_CHILD
+    state["found_child_report"] = FoundChildReport(found_location="Market")
+    state["user_prompt"] = "Can I post the child's photo online?"
+    result = await understand_intent(state)
+    assert result["intent"] == Intent.GUIDANCE
+    mock_llm.extract_intent.assert_awaited_once()
+
+
+@pytest.mark.asyncio
 async def test_node_search_support():
     mock_mcp = MagicMock()
     mock_mcp.search_support = AsyncMock(

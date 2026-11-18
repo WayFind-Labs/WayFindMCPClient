@@ -216,6 +216,12 @@ class WayfindLLM:
             logger.warning("Failed to initialise LLM provider %s: %s", self.provider, exc)
             self._llm = None
 
+    def _structured_output(self, schema: type) -> Any:
+        """Use Groq's JSON schema response format instead of tool calling."""
+        if self.provider == "groq" and self.api_key:
+            return self._llm.with_structured_output(schema, method="json_schema")
+        return self._llm.with_structured_output(schema)
+
     # ── Intent Extraction ──────────────────────────────────────────────────────
 
     async def extract_intent(
@@ -234,14 +240,16 @@ class WayfindLLM:
                     "- MISSING_CHILD: User is reporting a missing child or searching for their lost child.\n"
                     "- FOUND_CHILD: User has found an unaccompanied/lost child and wants to report them.\n"
                     "- SHELTER_SEARCH: User is looking for authorized child shelters, NGOs, or intake facilities.\n"
-                    "- GUIDANCE: User is asking general advice, safety tips, or procedures.\n"
+                    "- GUIDANCE: User is asking advice, safety tips, or procedures, even during an active report.\n"
                     "- CASE_STATUS: User wants to check the status of an existing case / report.\n"
                     "- UNKNOWN: Irrelevant, ambiguous, or general greeting.\n\n"
                     "If the user mentions a case reference number (like WF-20260925-0042), extract it into case_reference.\n"
+                    "Classify the LATEST user message. Prior turns provide context but do not lock intent. "
+                    "A question about posting a photo is GUIDANCE, not a report submission. "
                     "Provide a confidence score between 0.0 and 1.0."
                 )
 
-                structured_llm = self._llm.with_structured_output(IntentResult)
+                structured_llm = self._structured_output(IntentResult)
                 messages = [{"role": "system", "content": system_prompt}]
                 for msg in conversation_history[-4:]:
                     content = getattr(msg, "content", "") if not isinstance(msg, dict) else msg.get("content", "")
@@ -367,7 +375,7 @@ class WayfindLLM:
                     "4. If exact age is given (e.g. '7 years old'), set age_exact=7."
                 )
 
-                structured_llm = self._llm.with_structured_output(_ChildCriteriaLLM)
+                structured_llm = self._structured_output(_ChildCriteriaLLM)
                 extracted: _ChildCriteriaLLM = await structured_llm.ainvoke([
                     {"role": "system", "content": system_prompt},
                     {"role": "user", "content": prompt},
@@ -554,7 +562,7 @@ class WayfindLLM:
                     "5. Use age bounds for an approximate range; exact age only when explicitly exact."
                 )
 
-                structured_llm = self._llm.with_structured_output(_FoundChildLLM)
+                structured_llm = self._structured_output(_FoundChildLLM)
                 extracted: _FoundChildLLM = await structured_llm.ainvoke([
                     {"role": "system", "content": system_prompt},
                     {"role": "user", "content": prompt},
