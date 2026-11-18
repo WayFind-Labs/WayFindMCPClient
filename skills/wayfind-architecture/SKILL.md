@@ -124,7 +124,11 @@ $$\text{Search Time Range } = [T_{\text{lost}} - \Delta t_{\text{buffer}}, \quad
 
 Agent node → MCP tool → PostgresClient → gateway internal report endpoint →
 PostgreSQL. `POSTGRES_SERVICE_URL` and a shared internal API key are required.
-The submit node derives a stable per-session submission ID for retried writes.
+The submit node derives a stable per-draft submission ID for retried writes.
+Opaque draft IDs bind confirmation and cancellation; stale confirmations are
+rejected and explicit new reports clear the prior draft/reference state.
+Layerbase managed Redis over TLS is the local MVP shared state provider;
+agent state uses `wayfind:agent-state:` to avoid gateway hash collisions.
 The graph pauses on `request_confirmation` until a form response with
 `confirm_found_report=true` arrives.
 The LLM wrapper uses heuristics only when no API key is configured; configured

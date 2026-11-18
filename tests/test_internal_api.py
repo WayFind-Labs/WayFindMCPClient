@@ -14,9 +14,12 @@ import pytest
 from httpx import ASGITransport, AsyncClient
 
 from app.config import Settings
+from app.config import get_settings
 from app.main import create_app
+from app.routes.agent import _initial_state
+from app.session import MemorySessionStore
 
-INTERNAL_KEY = "changeme-dev-secret"
+INTERNAL_KEY = get_settings().shelter_backend_api_key
 WRONG_KEY = "invalid-key-xyz"
 
 
@@ -75,6 +78,63 @@ async def test_agent_readiness_checks_redis_and_mcp(monkeypatch):
     assert response.status_code == 200
     redis.ping.assert_awaited_once()
     probe.assert_awaited_once_with(settings.mcp_server_url)
+
+
+@pytest.mark.asyncio
+async def test_cancel_and_stale_confirmation_never_run_submission_graph():
+    app = create_app()
+    store = MemorySessionStore()
+    app.state.session_store = store
+    app.state.graph_runner = AsyncMock()
+    state = _initial_state("draft-session")
+    state["found_draft_id"] = "draft-current"
+    state["found_child_report"] = {"found_location": "Synthetic market"}
+    await store.set("draft-session", state)
+
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        stale = await client.post(
+            "/internal/sessions/draft-session/events",
+            headers={"X-Internal-Key": INTERNAL_KEY},
+            json={"event": {"type": "user_form_response", "form_data": {"confirm_found_report": True, "draft_id": "old-draft"}}},
+        )
+        assert stale.json()[0]["type"] == "error"
+        assert (await store.get("draft-session"))["found_child_report"] is not None
+
+        canceled = await client.post(
+            "/internal/sessions/draft-session/events",
+            headers={"X-Internal-Key": INTERNAL_KEY},
+            json={"event": {"type": "user_form_response", "form_data": {"cancel_found_report": True, "draft_id": "draft-current"}}},
+        )
+    assert "No report was recorded" in canceled.json()[0]["content"]
+    saved = await store.get("draft-session")
+    assert saved["found_child_report"] is None
+    assert saved["found_draft_id"] is None
+    app.state.graph_runner.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_explicit_new_report_replaces_prior_draft_and_reference():
+    app = create_app()
+    store = MemorySessionStore()
+    app.state.session_store = store
+    app.state.graph_runner = AsyncMock()
+    state = _initial_state("new-report-session")
+    state["found_draft_id"] = "old-draft"
+    state["found_child_report"] = {"found_location": "Old location"}
+    state["case_reference"] = "WF-OLD-CASE"
+    await store.set("new-report-session", state)
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        response = await client.post(
+            "/internal/sessions/new-report-session/events",
+            headers={"X-Internal-Key": INTERNAL_KEY},
+            json={"event": {"type": "user_form_response", "form_data": {"new_found_report": True}}},
+        )
+    assert response.status_code == 200
+    saved = await store.get("new-report-session")
+    assert saved["found_draft_id"] != "old-draft"
+    assert saved["found_child_report"] is None
+    assert saved["case_reference"] is None
+    app.state.graph_runner.assert_not_awaited()
 
 
 @pytest.mark.asyncio

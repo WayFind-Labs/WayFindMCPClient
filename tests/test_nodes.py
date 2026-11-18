@@ -288,6 +288,16 @@ async def test_node_submit_found_child():
     await submit_found_child(state)
     assert mock_mcp.submit_found_child_report.call_args.kwargs["report"].submission_id == first_key
 
+    retry_state = {**state, "case_reference": res["case_reference"], "found_child_report": res["found_child_report"]}
+    retry = await submit_found_child(retry_state)
+    receipt = next(event for event in retry["agent_events"] if event["type"] == "submission_complete")
+    assert receipt["record_id"] == res["case_reference"]
+    assert receipt["submitted_at"] == "2026-11-17T00:00:00Z"
+    assert mock_mcp.submit_found_child_report.await_count == 2
+    state["found_draft_id"] = "second-draft"
+    await submit_found_child(state)
+    assert mock_mcp.submit_found_child_report.call_args.kwargs["report"].submission_id != first_key
+
 
 @pytest.mark.asyncio
 async def test_found_report_review_includes_collected_details():

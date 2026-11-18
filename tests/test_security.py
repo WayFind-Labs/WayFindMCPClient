@@ -17,10 +17,11 @@ from httpx import ASGITransport, AsyncClient
 from pydantic import ValidationError
 
 from app.main import create_app
+from app.config import get_settings
 from mcp_server.tools.image_match_candidates import image_match_candidates
 from schemas.event import IncomingEvent
 
-INTERNAL_KEY = "changeme-dev-secret"
+INTERNAL_KEY = get_settings().shelter_backend_api_key
 WRONG_KEY = "wrong-unauthorized-key"
 
 

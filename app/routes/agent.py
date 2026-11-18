@@ -38,6 +38,7 @@ Security:
 from __future__ import annotations
 
 import logging
+import uuid
 from typing import Any
 
 from fastapi import APIRouter, Request
@@ -109,6 +110,42 @@ async def handle_event(
 
     # ── 2. Merge incoming event into state ─────────────────────────────────────
     event = body.event
+    form = (event.form_data or {}) if event.type == "user_form_response" else {}
+    if form.get("cancel_found_report") is True:
+        if state.get("case_reference"):
+            return JSONResponse(content=[{"type": "error", "message": "This report is already recorded and cannot be canceled in chat."}])
+        if not state.get("found_draft_id") or form.get("draft_id") != state.get("found_draft_id"):
+            return JSONResponse(content=[{"type": "error", "message": "This report draft has changed. Please review the latest details."}])
+        state["found_child_report"] = None
+        state["found_draft_id"] = None
+        state["submission_confirmed"] = False
+        state["last_form_data"] = None
+        state["intent"] = None
+        state["conversation_history"] = []
+        state["missing_information"] = []
+        state["followup_question"] = None
+        state["agent_events"] = []
+        state["found_safety_delivered"] = False
+        await store.set(session_id, _serialise_state(state))
+        return JSONResponse(content=[{"type": "assistant_message", "content": "The draft was canceled. No report was recorded. You can start again whenever you're ready."}])
+    if form.get("new_found_report") is True:
+        state["found_child_report"] = None
+        state["found_draft_id"] = str(uuid.uuid4())
+        state["case_reference"] = None
+        state["submission_confirmed"] = False
+        state["last_form_data"] = None
+        state["intent"] = None
+        state["conversation_history"] = []
+        state["missing_information"] = []
+        state["followup_question"] = None
+        state["agent_events"] = []
+        state["found_safety_delivered"] = False
+        await store.set(session_id, _serialise_state(state))
+        return JSONResponse(content=[{"type": "assistant_message", "content": "A new report draft is ready. Tell me where you found the child."}])
+    if form.get("confirm_found_report") is True and (
+        not state.get("found_draft_id") or form.get("draft_id") != state.get("found_draft_id")
+    ):
+        return JSONResponse(content=[{"type": "error", "message": "This confirmation is out of date. Please review the latest report."}])
     state = _merge_event(state, event)
 
     # ── 3. Run LangGraph graph ─────────────────────────────────────────────────
@@ -181,7 +218,7 @@ def _merge_event(state: dict[str, Any], event: IncomingEvent) -> dict[str, Any]:
         if form.get("confirm_found_report") is True:
             state["submission_confirmed"] = True
         # Build a human-readable summary for the conversation history
-        summary = "; ".join(f"{k}: {v}" for k, v in form.items())
+        summary = "; ".join(f"{k}: {v}" for k, v in form.items() if k != "draft_id")
         state["user_prompt"] = summary
         state["conversation_history"] = state.get("conversation_history", []) + [
             {"role": "user", "content": summary}
@@ -216,6 +253,7 @@ def _initial_state(session_id: str) -> dict[str, Any]:
         "child_search_criteria":   None,
         "child_registration_data": None,
         "found_child_report":      None,
+        "found_draft_id":          None,
         "missing_information":     [],
         "followup_question":       None,
         "user_location":           None,

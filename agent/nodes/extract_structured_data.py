@@ -31,6 +31,7 @@ Phase 5 status: STUB — returns unchanged criteria until LLM wired in Phase 6.
 from __future__ import annotations
 
 import logging
+import uuid
 from typing import Any
 
 from agent.dependencies import get_llm
@@ -70,6 +71,7 @@ async def extract_structured_data(state: WayfindState) -> dict:
                 )
                 return {
                     "found_child_report": result,
+                    "found_draft_id": state.get("found_draft_id") or str(uuid.uuid4()),
                     "last_form_data": None,
                 }
             elif intent == Intent.REGISTER_CHILD:
@@ -111,6 +113,7 @@ async def extract_structured_data(state: WayfindState) -> dict:
         report = _to_found_report(existing)
         report = _heuristic_merge_found(report, prompt, state.get("last_form_data"), state.get("media_reference"))
         updates["found_child_report"] = report
+        updates["found_draft_id"] = state.get("found_draft_id") or str(uuid.uuid4())
 
     return updates
 

@@ -151,9 +151,11 @@ for model guidance and the 17 November workspace audit for outstanding work.
 The report submission path requires the gateway and committed PostgreSQL
 receipt. Synthetic success fallbacks have been removed from the node, MCP
 wrapper, tool and downstream HTTP client.
-The submit node attaches a stable per-session submission ID for database
-idempotency. A deliberate second report in one session requires a distinct
-draft ID in the future conversation state design.
+The submit node attaches a stable per-draft submission ID for database
+idempotency. Draft IDs bind confirmation/cancellation and distinguish an
+explicit new report from a retry. The local shared Redis provider is Layerbase
+over TLS; agent state keys use `wayfind:agent-state:` and gateway sessions use
+`wayfind:session:`. A synthetic live namespace/two-turn test passed.
 The report node emits a summary and waits for explicit confirmation. Failure
 or correction resets the confirmation flag.
 Committed-report and generic tool-failure messages no longer imply staff

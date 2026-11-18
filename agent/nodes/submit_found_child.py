@@ -55,8 +55,14 @@ async def submit_found_child(state: WayfindState) -> dict:
     # still carries the completed report. Never create a second case reference.
     existing_reference = state.get("case_reference")
     if existing_reference:
+        saved_report = state.get("found_child_report")
+        submitted_at = (
+            saved_report.get("received_at") if isinstance(saved_report, dict)
+            else getattr(saved_report, "received_at", None)
+        )
         return {
             "agent_events": existing_events + [
+                {"type": "submission_complete", "record_id": existing_reference, "submitted_at": submitted_at, "schema_version": "FoundChildIntakeV1"},
                 {"type": "assistant_message", "content": f"Your report is already recorded. Reference number: {existing_reference}."}
             ]
         }
@@ -107,6 +113,7 @@ async def submit_found_child(state: WayfindState) -> dict:
             "agent_events": existing_events + [{
                 "type": "request_confirmation",
                 "content": "Please review this report before recording it. You can correct details in chat.\n" + "\n".join(details),
+                "draft_id": state.get("found_draft_id"),
             }],
         }
 
@@ -118,7 +125,7 @@ async def submit_found_child(state: WayfindState) -> dict:
                 report = FoundChildReport(**report)
             if not report.submission_id:
                 report = report.model_copy(update={
-                    "submission_id": str(uuid.uuid5(uuid.NAMESPACE_URL, f"wayfind-found:{state.get('session_id', '')}"))
+                    "submission_id": str(uuid.uuid5(uuid.NAMESPACE_URL, f"wayfind-found:{state.get('session_id', '')}:{state.get('found_draft_id') or 'legacy'}"))
                 })
             result = await mcp.submit_found_child_report(report=report)
             case_ref = result.case_reference
@@ -126,6 +133,7 @@ async def submit_found_child(state: WayfindState) -> dict:
             logger.info("Session %s: report submitted, case_reference=%s", state.get("session_id"), case_ref)
             return {
                 "case_reference": case_ref,
+                "found_child_report": report.model_copy(update={"received_at": submitted_at}),
                 "agent_events":   existing_events + [
                     {"type": "submission_complete", "record_id": case_ref, "submitted_at": submitted_at, "schema_version": "FoundChildIntakeV1"},
                     {"type": "assistant_message", "content": _SUCCESS_MSG.format(ref=case_ref)},

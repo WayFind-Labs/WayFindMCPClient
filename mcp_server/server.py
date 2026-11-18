@@ -7,6 +7,7 @@ Registers all 6 core domain tools with FastMCP.
 from __future__ import annotations
 
 import logging
+import os
 
 from fastmcp import FastMCP
 
@@ -31,3 +32,12 @@ mcp.tool()(get_guidance)
 mcp.tool()(get_case_status)
 
 logger.info("FastMCP server 'wayfind' initialised with 6 registered tools")
+
+
+if __name__ == "__main__":
+    mcp.run(
+        transport="sse",
+        host=os.getenv("MCP_SERVER_HOST", "127.0.0.1"),
+        port=int(os.getenv("MCP_SERVER_PORT", "9000")),
+        show_banner=False,
+    )

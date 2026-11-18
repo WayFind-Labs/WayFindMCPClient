@@ -328,6 +328,7 @@ async def test_graph_found_child_pipeline():
 
     event_types = [e["type"] for e in result["agent_events"]]
     assert "submission_complete" in event_types
+    assert result["found_draft_id"]
 
 
 @pytest.mark.asyncio

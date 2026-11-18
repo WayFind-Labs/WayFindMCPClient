@@ -26,10 +26,11 @@ from agent.nodes.submit_found_child import submit_found_child
 from agent.runner import reset_graph, run_agent
 from agent.state import Intent, initial_state
 from app.main import create_app
+from app.config import get_settings
 from schemas.child import AgeRange, ChildSearchCriteria, FoundChildReport
 from schemas.evidence import ConfidenceTier, MatchEvidence
 
-INTERNAL_KEY = "changeme-dev-secret"
+INTERNAL_KEY = get_settings().shelter_backend_api_key
 
 
 @pytest.fixture(autouse=True)

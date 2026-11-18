@@ -212,6 +212,10 @@ failure if a committed backend receipt is unavailable; they never generate a
 local success reference.
 The agent attaches a stable submission key derived from the session so retrying
 the same report after a lost response reuses the database reference.
+The key also includes the draft ID, so an explicitly new report can have its
+own receipt. Confirmation and cancellation carry the opaque draft ID from the
+review event; stale confirmations are rejected, and cancellation clears only
+an unrecorded draft.
 The graph emits `request_confirmation` with a review summary before recording.
 The committed-report message does not claim staff review, matching or authority
 notification; tool-failure copy does not claim staff were notified.
@@ -252,3 +256,8 @@ Structured extraction applies new facts as corrections to prior report fields
 and validates the merged canonical report; approximate ages retain bounds.
 `tests/test_live_groq.py` is an opt-in synthetic rehearsal for configured
 Groq intent, structured fields and photo-sharing safety guidance.
+The MVP shared Redis provider is Layerbase managed Redis over TLS (`rediss://`),
+configured only in ignored local environment files. Agent conversation state
+uses `wayfind:agent-state:` keys, separate from gateway session hashes under
+`wayfind:session:`. A synthetic shared Redis contract test lives in the gateway
+test suite.

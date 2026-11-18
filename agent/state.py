@@ -120,6 +120,9 @@ class WayfindState(TypedDict):
     ``media_reference`` inside this model is set from ``state.media_reference``.
     """
 
+    found_draft_id: str | None
+    """Opaque identifier for one editable found-child draft and its confirmation."""
+
     # ── Completeness / follow-up ──────────────────────────────────────────────
     missing_information: list[str]
     """Field names that are still required before the agent can proceed.
@@ -252,6 +255,7 @@ def initial_state(session_id: str) -> WayfindState:
         child_search_criteria  = None,
         child_registration_data = None,
         found_child_report     = None,
+        found_draft_id         = None,
         missing_information    = [],
         followup_question      = None,
         user_location          = None,
