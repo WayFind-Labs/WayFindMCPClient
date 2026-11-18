@@ -228,3 +228,5 @@ The pre-submit review includes known age, appearance, location, time,
 circumstances, authority-contact status and optional reporter details.
 Structured extraction applies new facts as corrections to prior report fields
 and validates the merged canonical report; approximate ages retain bounds.
+`tests/test_live_groq.py` is an opt-in synthetic rehearsal for configured
+Groq intent, structured fields and photo-sharing safety guidance.
