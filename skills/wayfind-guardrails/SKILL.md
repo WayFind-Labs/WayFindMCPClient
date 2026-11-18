@@ -25,6 +25,9 @@ context. This current MVP policy takes precedence over aspirational wording belo
   are safe,” coercive questioning, recording prompts and hidden-body inspection.
 - Guidance-node model failure uses explicit unavailable safety help; no new
   regex/keyword conversation fallback is introduced by this integration.
+- Fresh text turns are reclassified so a safety question can interrupt intake;
+  Groq structured extraction uses JSON Schema mode. Form responses stay with
+  the active draft. No-key development still contains legacy heuristics.
 - Wider audit fixes remain pending, including legacy heuristic routing, static
   success messages and report persistence. Prompt instructions alone do not
   enforce database/authentication/notification guarantees.

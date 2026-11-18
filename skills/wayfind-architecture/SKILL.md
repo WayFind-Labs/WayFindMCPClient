@@ -135,3 +135,6 @@ Age/height bounds and the receipt version match the gateway intake contract.
 The submit node first emits a summary of known details for explicit review.
 The LLM's structured found-child extraction merges corrections into a
 validated `FoundChildReport`, including age ranges.
+Fresh text turns are reclassified so guidance questions can interrupt intake;
+form answers retain the active draft intent. Groq structured extraction uses
+JSON Schema mode rather than function calling.

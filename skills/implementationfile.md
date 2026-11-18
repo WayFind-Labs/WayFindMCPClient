@@ -158,6 +158,9 @@ The report node emits a summary and waits for explicit confirmation. Failure
 or correction resets the confirmation flag.
 Live provider intent/extraction errors now propagate instead of invoking
 regex/keyword fallback; no-key mode retains legacy demo heuristics.
+Fresh text turns are reclassified, so a guidance question can interrupt a
+found-child intake. Groq structured extraction uses JSON Schema output instead
+of function calling, verified by synthetic live intent/extraction tests.
 The found-child runtime policy is location neutral and does not require
 matching or a province/city before collecting a report.
 The completed report event includes the backend timestamp for the UI receipt.

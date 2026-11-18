@@ -217,6 +217,11 @@ Only the explicit `confirm_found_report` form action enables the write; a text
 correction or failed submission resets confirmation.
 When an LLM API key is configured, intent and structured extraction failures
 surface as errors. Keyword heuristics remain only in no-key development mode.
+Fresh text turns are reclassified, allowing guidance questions to interrupt an
+active intake; structured form answers remain attached to their active draft.
+Groq extraction uses JSON Schema output for the configured GPT OSS model rather
+than function calling. The interruption and extraction paths have a synthetic
+live Groq rehearsal.
 The packaged found-child guidance is location neutral. It records the
 finder's reported location without requiring a Pakistan province or running
 candidate matching; regional contacts are used only where verified.
