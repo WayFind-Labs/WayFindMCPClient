@@ -137,6 +137,10 @@ The committed-report message states only the Wayfind record and asks the
 finder to contact local authorities; generic tool failures claim no staff alert.
 The agent's public status branch explains the deferred lookup; internal status
 adapters fail closed on missing or failed downstream responses.
+With `ENABLE_DEFERRED_FEATURES=false`, the agent routes typed missing-child,
+registration and shelter-search requests to an unavailable-feature response
+before extraction or synthetic candidate search. Roadmap graph branches remain
+behind the flag for later activation.
 The LLM's structured found-child extraction merges corrections into a
 validated `FoundChildReport`, including age ranges.
 Fresh text turns are reclassified so guidance questions can interrupt intake;

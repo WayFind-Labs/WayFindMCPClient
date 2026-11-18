@@ -46,6 +46,7 @@ class Settings(BaseSettings):
     image_backend_url: str = ""
     support_service_url: str = ""
     review_service_url: str = ""
+    enable_deferred_features: bool = False
 
     # ── Media Safety Scan ─────────────────────────────────────────────────────
     media_safety_scan_url: str = ""

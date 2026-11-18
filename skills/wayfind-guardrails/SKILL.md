@@ -22,6 +22,9 @@ context. This current MVP policy takes precedence over aspirational wording belo
   action; generic tool failures do not claim staff notification.
 - Public case-status lookup is deferred; internal status adapters fail closed
   rather than inventing a review state or timestamps.
+- The agent blocks missing-child search, registration and shelter-search graph
+  paths by default before extraction or candidate search; re-enable only after
+  their separate public-use gates are verified.
 - Use sourced regional contacts; do not present 1098 as a universal Pakistan
   child helpline or 1099 as emergency medical dispatch.
 - Stay visible and seek official help; do not advise private transport or handing

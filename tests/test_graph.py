@@ -8,6 +8,7 @@ and full workflow execution for all supported intent pipelines.
 
 from __future__ import annotations
 
+from types import SimpleNamespace
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -24,8 +25,11 @@ from schemas.image import ImageMatch
 
 
 @pytest.fixture(autouse=True)
-def clean_graph_and_deps():
+def clean_graph_and_deps(monkeypatch):
     """Ensure graph singleton and dependencies are reset before and after each test."""
+    # Keep roadmap graph branches under test without enabling them by default
+    # in the public MVP. Individual gate tests override this setting.
+    monkeypatch.setattr("agent.graph.get_settings", lambda: SimpleNamespace(enable_deferred_features=True))
     reset_graph()
     set_llm(None)
     set_mcp_client(None)
@@ -42,6 +46,7 @@ def test_build_graph_structure():
 
     expected_nodes = [
         "understand_intent",
+        "deferred_feature",
         "extract_structured_data",
         "check_completeness",
         "ask_followup",
@@ -74,6 +79,28 @@ def test_runner_singleton_caching():
     reset_graph()
     g3 = get_graph()
     assert g3 is not g1
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("intent", [Intent.MISSING_CHILD, Intent.REGISTER_CHILD, Intent.SHELTER_SEARCH])
+async def test_public_mvp_blocks_deferred_text_intents_before_extraction(monkeypatch, intent):
+    monkeypatch.setattr("agent.graph.get_settings", lambda: SimpleNamespace(enable_deferred_features=False))
+    mock_llm = MagicMock()
+    mock_llm.extract_intent = AsyncMock(return_value=MagicMock(intent=intent, confidence=0.99))
+    mock_llm.extract_child_criteria = AsyncMock()
+    set_llm(mock_llm)
+    mock_mcp = MagicMock()
+    set_mcp_client(mock_mcp)
+
+    state = initial_state(f"deferred-{intent.value}")
+    state["user_prompt"] = "Synthetic request for an unavailable feature"
+    result = await run_agent(state)
+
+    assert result["agent_events"][0]["type"] == "assistant_message"
+    assert "not available" in result["agent_events"][0]["content"] or "cannot" in result["agent_events"][0]["content"]
+    assert not any(event["type"] in {"search_results", "review_pending", "submission_complete"} for event in result["agent_events"])
+    mock_llm.extract_child_criteria.assert_not_awaited()
+    mock_mcp.search_child_records.assert_not_called()
 
 
 @pytest.mark.asyncio

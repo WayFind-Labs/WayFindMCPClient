@@ -12,6 +12,7 @@ Verifies that:
 
 from __future__ import annotations
 
+from types import SimpleNamespace
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock
 
@@ -30,7 +31,10 @@ INTERNAL_KEY = "changeme-dev-secret"
 
 
 @pytest.fixture(autouse=True)
-def clean_deps():
+def clean_deps(monkeypatch):
+    # These legacy pipeline tests exercise future roadmap behavior explicitly;
+    # the public MVP gate remains disabled by default elsewhere.
+    monkeypatch.setattr("agent.graph.get_settings", lambda: SimpleNamespace(enable_deferred_features=True))
     reset_graph()
     set_llm(None)
     set_mcp_client(None)

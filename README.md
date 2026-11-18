@@ -218,6 +218,10 @@ notification; tool-failure copy does not claim staff were notified.
 Public case-status lookup is deferred. The agent explains that limitation;
 internal status adapters reject missing or failed downstream results instead
 of inventing an active review state.
+`ENABLE_DEFERRED_FEATURES=false` closes typed missing-child search, child
+registration and shelter-search turns before extraction or search. The graph
+retains those branches for later work, but both agent and gateway gates must
+be enabled before any roadmap feature can be activated.
 Only the explicit `confirm_found_report` form action enables the write; a text
 correction or failed submission resets confirmation.
 When an LLM API key is configured, intent and structured extraction failures

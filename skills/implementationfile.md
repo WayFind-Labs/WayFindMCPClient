@@ -160,6 +160,9 @@ Committed-report and generic tool-failure messages no longer imply staff
 review, matching, callback or staff notification.
 The public case-status branch is deferred, and its internal MCP/HTTP adapters
 no longer fabricate an `under_review` status when the backend fails.
+The agent now gates missing-child search, registration and shelter-search
+intents before extraction/search under `ENABLE_DEFERRED_FEATURES=false`.
+Both agent and gateway flags require explicit activation for roadmap work.
 Live provider intent/extraction errors now propagate instead of invoking
 regex/keyword fallback; no-key mode retains legacy demo heuristics.
 Fresh text turns are reclassified, so a guidance question can interrupt a
