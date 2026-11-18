@@ -160,6 +160,9 @@ An authenticated internal snapshot route returns a minimal current review or
 committed receipt event for gateway-mediated refresh without exposing raw state.
 Receipt narration reflects irregular sole-admin review without a guaranteed
 response time or an automatic authority alert.
+Found-child draft state includes per-field known/unknown/declined status, with
+unasked represented by absence. Form selections and typed model output update
+it; later facts replace unavailable statuses.
 The report node emits a summary and waits for explicit confirmation. Failure
 or correction resets the confirmation flag.
 Committed-report and generic tool-failure messages no longer imply staff

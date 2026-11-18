@@ -63,14 +63,17 @@ async def extract_structured_data(state: WayfindState) -> dict:
                     "last_form_data": None,
                 }
             elif intent == Intent.FOUND_CHILD:
+                statuses = dict(state.get("found_field_statuses") or {})
                 result = await llm.extract_found_child_report(
                     existing_report=state.get("found_child_report"),
                     prompt=state["user_prompt"],
                     form_data=state.get("last_form_data"),
                     media_reference=state.get("media_reference"),
+                    field_statuses=statuses,
                 )
                 return {
                     "found_child_report": result,
+                    "found_field_statuses": statuses,
                     "found_draft_id": state.get("found_draft_id") or str(uuid.uuid4()),
                     "last_form_data": None,
                 }

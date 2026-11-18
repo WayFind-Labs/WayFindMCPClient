@@ -123,6 +123,9 @@ class WayfindState(TypedDict):
     found_draft_id: str | None
     """Opaque identifier for one editable found-child draft and its confirmation."""
 
+    found_field_statuses: dict[str, str]
+    """Per-field unasked, known, unknown or declined status for the active found draft."""
+
     # ── Completeness / follow-up ──────────────────────────────────────────────
     missing_information: list[str]
     """Field names that are still required before the agent can proceed.
@@ -256,6 +259,7 @@ def initial_state(session_id: str) -> WayfindState:
         child_registration_data = None,
         found_child_report     = None,
         found_draft_id         = None,
+        found_field_statuses   = {},
         missing_information    = [],
         followup_question      = None,
         user_location          = None,

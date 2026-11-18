@@ -150,6 +150,7 @@ async def handle_event(
             return JSONResponse(content=[{"type": "error", "message": "This report draft has changed. Please review the latest details."}])
         state["found_child_report"] = None
         state["found_draft_id"] = None
+        state["found_field_statuses"] = {}
         state["submission_confirmed"] = False
         state["last_form_data"] = None
         state["intent"] = None
@@ -163,6 +164,7 @@ async def handle_event(
     if form.get("new_found_report") is True:
         state["found_child_report"] = None
         state["found_draft_id"] = str(uuid.uuid4())
+        state["found_field_statuses"] = {}
         state["case_reference"] = None
         state["submission_confirmed"] = False
         state["last_form_data"] = None
@@ -250,7 +252,7 @@ def _merge_event(state: dict[str, Any], event: IncomingEvent) -> dict[str, Any]:
         if form.get("confirm_found_report") is True:
             state["submission_confirmed"] = True
         # Build a human-readable summary for the conversation history
-        summary = "; ".join(f"{k}: {v}" for k, v in form.items() if k != "draft_id")
+        summary = "; ".join(f"{k}: {v}" for k, v in form.items() if k != "draft_id" and not k.startswith("_"))
         state["user_prompt"] = summary
         state["conversation_history"] = state.get("conversation_history", []) + [
             {"role": "user", "content": summary}
@@ -286,6 +288,7 @@ def _initial_state(session_id: str) -> dict[str, Any]:
         "child_registration_data": None,
         "found_child_report":      None,
         "found_draft_id":          None,
+        "found_field_statuses":    {},
         "missing_information":     [],
         "followup_question":       None,
         "user_location":           None,

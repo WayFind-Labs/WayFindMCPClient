@@ -154,6 +154,14 @@ class _FoundChildLLM(BaseModel):
         default=None,
         description="Where the child is right now (e.g., 'with reporter at police station').",
     )
+    unknown_fields: list[str] = Field(
+        default_factory=list,
+        description="Report field names the user explicitly says they do not know in this latest turn.",
+    )
+    declined_fields: list[str] = Field(
+        default_factory=list,
+        description="Report field names the user explicitly declines to provide in this latest turn.",
+    )
 
 
 class WayfindLLM:
@@ -510,6 +518,7 @@ class WayfindLLM:
         prompt: str,
         form_data: dict | None = None,
         media_reference: str | None = None,
+        field_statuses: dict[str, str] | None = None,
     ) -> FoundChildReport:
         """Merge-extract found child report from prompt, form_data, and media."""
         if existing_report is None:
@@ -520,10 +529,26 @@ class WayfindLLM:
             current = existing_report.model_copy()
 
         updates: dict[str, Any] = {}
+        statuses = field_statuses if field_statuses is not None else {}
+        status_fields = {"found_location", "approx_age", "gender", "clothing", "identifying_features", "current_circumstances"}
+        form_aliases = {"location": "found_location", "age": "approx_age", "approximate_age": "approx_age"}
+        empty_values: dict[str, Any] = {
+            "found_location": "unknown", "approx_age": AgeRange(), "gender": None,
+            "clothing": [], "identifying_features": [], "current_circumstances": None,
+        }
         if media_reference and not current.media_reference:
             updates["media_reference"] = media_reference
 
         if form_data:
+            raw_statuses = form_data.get("_field_statuses")
+            if isinstance(raw_statuses, dict):
+                for field, status in raw_statuses.items():
+                    target = form_aliases.get(field, field)
+                    if target not in status_fields or status not in {"known", "unknown", "declined"}:
+                        continue
+                    statuses[target] = status
+                    if status != "known":
+                        updates[target] = empty_values[target]
             if "gender" in form_data and form_data["gender"]:
                 updates["gender"] = str(form_data["gender"]).lower()
             if "location" in form_data and form_data["location"]:
@@ -547,6 +572,10 @@ class WayfindLLM:
             if form_data.get("authorities_contacted") is not None:
                 updates["authorities_contacted"] = bool(form_data["authorities_contacted"])
 
+        for field in updates:
+            if field in status_fields and statuses.get(field) not in {"unknown", "declined"}:
+                statuses[field] = "known"
+
         if updates:
             current = FoundChildReport.model_validate({**current.model_dump(), **updates})
 
@@ -559,7 +588,11 @@ class WayfindLLM:
                     "2. Leave fields None if not mentioned.\n"
                     "3. Extract found_location if a location is described.\n"
                     "4. Extract only facts from the latest message. Corrections replace older facts.\n"
-                    "5. Use age bounds for an approximate range; exact age only when explicitly exact."
+                    "5. Use age bounds for an approximate range; exact age only when explicitly exact.\n"
+                    "6. If the user explicitly does not know a detail, put its report field name in unknown_fields. "
+                    "If they explicitly refuse to give it, use declined_fields. Allowed names: "
+                    "found_location, approx_age, gender, clothing, identifying_features, current_circumstances. "
+                    "Do not infer unknown or declined from silence."
                 )
 
                 structured_llm = self._structured_output(_FoundChildLLM)
@@ -569,8 +602,10 @@ class WayfindLLM:
                 ])
 
                 llm_updates: dict[str, Any] = {}
-                if extracted.gender:
+                if extracted.gender and extracted.gender.lower() != "unknown":
                     llm_updates["gender"] = extracted.gender.lower()
+                elif extracted.gender and extracted.gender.lower() == "unknown":
+                    llm_updates["gender"] = None
                 if extracted.approximate_age is not None:
                     llm_updates["approx_age"] = AgeRange(exact=extracted.approximate_age)
                 elif extracted.approximate_age_min is not None or extracted.approximate_age_max is not None:
@@ -591,6 +626,21 @@ class WayfindLLM:
                     ))
                 if extracted.current_status:
                     llm_updates["description"] = extracted.current_status
+
+                for field in llm_updates:
+                    if field in status_fields:
+                        statuses[field] = "known"
+                if extracted.gender and extracted.gender.lower() == "unknown":
+                    statuses["gender"] = "unknown"
+
+                for field in extracted.unknown_fields:
+                    if field in status_fields and field not in llm_updates:
+                        statuses[field] = "unknown"
+                        llm_updates[field] = empty_values[field]
+                for field in extracted.declined_fields:
+                    if field in status_fields and field not in llm_updates:
+                        statuses[field] = "declined"
+                        llm_updates[field] = empty_values[field]
 
                 if llm_updates:
                     current = FoundChildReport.model_validate({**current.model_dump(), **llm_updates})

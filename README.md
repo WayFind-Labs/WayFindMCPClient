@@ -222,6 +222,9 @@ it never exposes raw agent state or the conversation log.
 The recorded-report message states that sole-admin review is irregular with no
 guaranteed monitoring or response time; users are directed to local authorities
 for immediate action rather than promised an automatic alert.
+The found-child draft now carries per-field `known`, `unknown`, `declined` or
+unasked state. Explicit form choices and typed model extraction update those
+statuses; later corrections replace earlier unknown/declined values.
 The graph emits `request_confirmation` with a review summary before recording.
 The committed-report message does not claim staff review, matching or authority
 notification; tool-failure copy does not claim staff were notified.

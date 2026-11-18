@@ -82,6 +82,23 @@ async def test_node_extract_structured_data_missing_child():
 
 
 @pytest.mark.asyncio
+async def test_found_field_statuses_return_with_extracted_draft():
+    async def extract(**kwargs):
+        kwargs["field_statuses"]["clothing"] = "unknown"
+        return FoundChildReport(found_location="Synthetic market")
+
+    mock_llm = MagicMock()
+    mock_llm.extract_found_child_report = AsyncMock(side_effect=extract)
+    set_llm(mock_llm)
+    state = initial_state("status-session")
+    state["intent"] = Intent.FOUND_CHILD
+    state["user_prompt"] = "I could not see the clothing"
+    result = await extract_structured_data(state)
+    assert result["found_field_statuses"] == {"clothing": "unknown"}
+    assert result["found_child_report"].found_location == "Synthetic market"
+
+
+@pytest.mark.asyncio
 async def test_node_check_completeness():
     state = initial_state("s3")
     state["intent"] = Intent.MISSING_CHILD

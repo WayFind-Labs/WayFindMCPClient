@@ -131,6 +131,9 @@ The internal snapshot route derives a minimal review or receipt event from
 Redis state so the gateway can restore a browser view after refresh.
 The found-report success response reflects irregular sole-admin review and
 does not imply active monitoring or automatic authority notification.
+The found draft stores field status separately from report values. Form choices
+and the model's structured latest-turn extraction set explicit unknown or
+declined states; known corrections replace those states.
 Layerbase managed Redis over TLS is the local MVP shared state provider;
 agent state uses `wayfind:agent-state:` to avoid gateway hash collisions.
 The graph pauses on `request_confirmation` until a form response with

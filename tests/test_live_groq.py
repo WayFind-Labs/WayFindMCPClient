@@ -28,13 +28,18 @@ async def test_live_groq_found_child_intake():
         prompt="Before that, can I post the child's photo online?",
     )
     assert interruption.intent == Intent.GUIDANCE
+    field_statuses: dict[str, str] = {}
     report = await llm.extract_found_child_report(
         existing_report=None,
         prompt="I found a child around 6 to 8 years old near a synthetic market. They wore a red shirt.",
+        field_statuses=field_statuses,
     )
     assert report.found_location and "market" in report.found_location.lower()
     assert report.clothing and "red" in report.clothing[0].lower()
     assert report.approx_age.min == 6 and report.approx_age.max == 8
+    assert field_statuses["found_location"] == "known"
+    assert field_statuses["clothing"] == "known"
+    assert field_statuses["approx_age"] == "known"
     state = initial_state("synthetic-groq-guidance")
     state["user_prompt"] = "Can I post the child's photo and location on social media?"
     guidance = await llm.generate_guidance_response(state)

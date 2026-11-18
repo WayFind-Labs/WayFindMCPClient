@@ -158,6 +158,53 @@ async def test_structured_correction_replaces_prior_found_details():
 
 
 @pytest.mark.asyncio
+async def test_found_field_unknown_and_later_correction_are_explicit():
+    from schemas.child import AgeRange, FoundChildReport
+
+    llm = WayfindLLM(api_key="")
+    statuses: dict[str, str] = {}
+    old = FoundChildReport(
+        found_location="Synthetic market", approx_age=AgeRange(exact=7), clothing=["red shirt"],
+    )
+    unknown = await llm.extract_found_child_report(
+        old, "", form_data={
+            "age": None, "clothing": None,
+            "_field_statuses": {"age": "unknown", "clothing": "declined"},
+        }, field_statuses=statuses,
+    )
+    assert unknown.approx_age.exact is None
+    assert unknown.clothing == []
+    assert statuses == {"approx_age": "unknown", "clothing": "declined"}
+
+    llm._llm = SimpleNamespace(with_structured_output=lambda _model: SimpleNamespace(
+        ainvoke=AsyncMock(return_value=_FoundChildLLM(approximate_age=8, clothing_description="blue shirt"))
+    ))
+    corrected = await llm.extract_found_child_report(
+        unknown, "Actually, about eight, wearing blue", field_statuses=statuses,
+    )
+    assert corrected.approx_age.exact == 8
+    assert corrected.clothing == ["blue shirt"]
+    assert statuses == {"approx_age": "known", "clothing": "known"}
+
+
+@pytest.mark.asyncio
+async def test_model_can_mark_latest_unavailable_field_without_regex():
+    from schemas.child import FoundChildReport
+
+    llm = WayfindLLM(api_key="")
+    llm._llm = SimpleNamespace(with_structured_output=lambda _model: SimpleNamespace(
+        ainvoke=AsyncMock(return_value=_FoundChildLLM(unknown_fields=["clothing"]))
+    ))
+    statuses: dict[str, str] = {}
+    report = await llm.extract_found_child_report(
+        FoundChildReport(found_location="Synthetic market", clothing=["red shirt"]),
+        "I could not see what the child was wearing", field_statuses=statuses,
+    )
+    assert report.clothing == []
+    assert statuses["clothing"] == "unknown"
+
+
+@pytest.mark.asyncio
 async def test_configured_provider_failure_never_uses_heuristic_found_extraction():
     from unittest.mock import MagicMock, AsyncMock
     from mcp_client.llm import WayfindLLM
