@@ -127,6 +127,8 @@ PostgreSQL. `POSTGRES_SERVICE_URL` and a shared internal API key are required.
 The submit node derives a stable per-draft submission ID for retried writes.
 Opaque draft IDs bind confirmation and cancellation; stale confirmations are
 rejected and explicit new reports clear the prior draft/reference state.
+The internal snapshot route derives a minimal review or receipt event from
+Redis state so the gateway can restore a browser view after refresh.
 Layerbase managed Redis over TLS is the local MVP shared state provider;
 agent state uses `wayfind:agent-state:` to avoid gateway hash collisions.
 The graph pauses on `request_confirmation` until a form response with

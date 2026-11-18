@@ -156,6 +156,8 @@ idempotency. Draft IDs bind confirmation/cancellation and distinguish an
 explicit new report from a retry. The local shared Redis provider is Layerbase
 over TLS; agent state keys use `wayfind:agent-state:` and gateway sessions use
 `wayfind:session:`. A synthetic live namespace/two-turn test passed.
+An authenticated internal snapshot route returns a minimal current review or
+committed receipt event for gateway-mediated refresh without exposing raw state.
 The report node emits a summary and waits for explicit confirmation. Failure
 or correction resets the confirmation flag.
 Committed-report and generic tool-failure messages no longer imply staff

@@ -46,6 +46,8 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
 from app.session import SessionStore
+from schemas.child import FoundChildReport
+from agent.nodes.submit_found_child import found_report_review_text
 
 logger = logging.getLogger(__name__)
 
@@ -70,6 +72,36 @@ def get_session_store(request: Request) -> SessionStore:
 
 
 # ── Route ──────────────────────────────────────────────────────────────────────
+
+@router.get("/sessions/{session_id}/snapshot", response_model=list[AgentEvent])
+async def get_session_snapshot(session_id: str, request: Request) -> list[AgentEvent]:
+    """Return a minimal public view of an existing found-child session."""
+    state = await get_session_store(request).get(session_id)
+    if not state:
+        return []
+    report_data = state.get("found_child_report")
+    if report_data:
+        report = FoundChildReport.model_validate(report_data)
+        if state.get("case_reference"):
+            return [AgentEvent(
+                type="submission_complete",
+                record_id=state["case_reference"],
+                submitted_at=report.received_at,
+                schema_version="FoundChildIntakeV1",
+            )]
+        if report.found_location and report.found_location != "unknown" and state.get("found_draft_id"):
+            return [AgentEvent(
+                type="request_confirmation",
+                content=found_report_review_text(report),
+                draft_id=state["found_draft_id"],
+            )]
+        return [
+            AgentEvent(type="assistant_message", content="Your report draft is still open. Where did you find the child?"),
+            AgentEvent(type="request_information", fields=["found_location"]),
+        ]
+    if state.get("found_draft_id"):
+        return [AgentEvent(type="assistant_message", content="Your new report draft is ready. Tell me where you found the child.")]
+    return []
 
 @router.post(
     "/sessions/{session_id}/events",

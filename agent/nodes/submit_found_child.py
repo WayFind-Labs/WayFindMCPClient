@@ -46,6 +46,41 @@ _FAILURE_MSG = (
 )
 
 
+def found_report_review_text(report: FoundChildReport) -> str:
+    """Render only the finder-provided facts for review or session resume."""
+    details = [f"Found near: {report.found_location}"]
+    age = report.approx_age
+    if age.exact is not None:
+        details.append(f"Age reported: {age.exact}")
+    elif age.min is not None or age.max is not None:
+        details.append(f"Approximate age: {age.min if age.min is not None else '?'}–{age.max if age.max is not None else '?'}")
+    if report.gender:
+        details.append(f"Gender reported: {report.gender}")
+    if report.hair_color:
+        details.append(f"Hair: {report.hair_color}")
+    if report.height.min_cm is not None or report.height.max_cm is not None:
+        details.append(f"Approximate height (cm): {report.height.min_cm if report.height.min_cm is not None else '?'}–{report.height.max_cm if report.height.max_cm is not None else '?'}")
+    if report.clothing:
+        details.append(f"Clothing: {', '.join(report.clothing)}")
+    if report.identifying_features:
+        details.append(f"Visible features: {', '.join(report.identifying_features)}")
+    if report.found_at:
+        details.append(f"Found at: {report.found_at}")
+    if report.current_circumstances:
+        details.append(f"Current situation: {report.current_circumstances}")
+    if report.authorities_contacted is not None:
+        details.append(f"Authorities contacted: {'yes' if report.authorities_contacted else 'no'}")
+    if report.reporter_contact:
+        details.append(f"Your contact: {report.reporter_contact}")
+    if report.reporter_name:
+        details.append(f"Your name: {report.reporter_name}")
+    if report.jurisdiction:
+        details.append(f"Area reported: {report.jurisdiction}")
+    if report.description:
+        details.append(f"Other details: {report.description}")
+    return "Please review this report before recording it. You can correct details in chat.\n" + "\n".join(details)
+
+
 async def submit_found_child(state: WayfindState) -> dict:
     """Submit the found-child report and emit a submission_complete event."""
     existing_events = state.get("agent_events", [])
@@ -79,40 +114,10 @@ async def submit_found_child(state: WayfindState) -> dict:
     if not state.get("submission_confirmed"):
         if isinstance(report, dict):
             report = FoundChildReport(**report)
-        details = [f"Found near: {report.found_location}"]
-        age = report.approx_age
-        if age.exact is not None:
-            details.append(f"Age reported: {age.exact}")
-        elif age.min is not None or age.max is not None:
-            details.append(f"Approximate age: {age.min if age.min is not None else '?'}–{age.max if age.max is not None else '?'}")
-        if report.gender:
-            details.append(f"Gender reported: {report.gender}")
-        if report.hair_color:
-            details.append(f"Hair: {report.hair_color}")
-        if report.height.min_cm is not None or report.height.max_cm is not None:
-            details.append(f"Approximate height (cm): {report.height.min_cm if report.height.min_cm is not None else '?'}–{report.height.max_cm if report.height.max_cm is not None else '?'}")
-        if report.clothing:
-            details.append(f"Clothing: {', '.join(report.clothing)}")
-        if report.identifying_features:
-            details.append(f"Visible features: {', '.join(report.identifying_features)}")
-        if report.found_at:
-            details.append(f"Found at: {report.found_at}")
-        if report.current_circumstances:
-            details.append(f"Current situation: {report.current_circumstances}")
-        if report.authorities_contacted is not None:
-            details.append(f"Authorities contacted: {'yes' if report.authorities_contacted else 'no'}")
-        if report.reporter_contact:
-            details.append(f"Your contact: {report.reporter_contact}")
-        if report.reporter_name:
-            details.append(f"Your name: {report.reporter_name}")
-        if report.jurisdiction:
-            details.append(f"Area reported: {report.jurisdiction}")
-        if report.description:
-            details.append(f"Other details: {report.description}")
         return {
             "agent_events": existing_events + [{
                 "type": "request_confirmation",
-                "content": "Please review this report before recording it. You can correct details in chat.\n" + "\n".join(details),
+                "content": found_report_review_text(report),
                 "draft_id": state.get("found_draft_id"),
             }],
         }

@@ -138,6 +138,30 @@ async def test_explicit_new_report_replaces_prior_draft_and_reference():
 
 
 @pytest.mark.asyncio
+async def test_snapshot_restores_only_review_or_committed_receipt():
+    app = create_app()
+    store = MemorySessionStore()
+    app.state.session_store = store
+    state = _initial_state("resume-session")
+    state["found_draft_id"] = "resume-draft"
+    state["found_child_report"] = {"found_location": "Synthetic market"}
+    await store.set("resume-session", state)
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        assert (await client.get("/internal/sessions/resume-session/snapshot")).status_code == 403
+        missing = await client.get("/internal/sessions/other-session/snapshot", headers={"X-Internal-Key": INTERNAL_KEY})
+        review = await client.get("/internal/sessions/resume-session/snapshot", headers={"X-Internal-Key": INTERNAL_KEY})
+        assert missing.json() == []
+        assert review.json()[0]["type"] == "request_confirmation"
+        assert review.json()[0]["draft_id"] == "resume-draft"
+        state["case_reference"] = "WF-SYNTHETIC"
+        state["found_child_report"]["received_at"] = "2026-11-19T00:00:00Z"
+        await store.set("resume-session", state)
+        receipt = await client.get("/internal/sessions/resume-session/snapshot", headers={"X-Internal-Key": INTERNAL_KEY})
+    assert receipt.json()[0]["type"] == "submission_complete"
+    assert receipt.json()[0]["record_id"] == "WF-SYNTHETIC"
+
+
+@pytest.mark.asyncio
 async def test_internal_api_auth_validation():
     """Verify auth behavior on POST /internal/sessions/{id}/events."""
     app = create_app()

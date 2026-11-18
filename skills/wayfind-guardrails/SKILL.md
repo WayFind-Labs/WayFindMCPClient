@@ -101,6 +101,8 @@ Retries within one session use the same submission ID. A distinct new report
 requires a distinct draft ID before recording.
 The current draft ID is carried in review/confirmation events. Stale
 confirmation is rejected, and cancellation clears an unrecorded draft.
+The internal session snapshot exposes only a found-child review or committed
+receipt behind the shared service key; raw state and dialogue stay internal.
 Layerbase managed Redis over TLS is the shared local MVP state provider;
 agent and gateway key namespaces are distinct.
 The found-report node requires an explicit confirmation event before a write.
