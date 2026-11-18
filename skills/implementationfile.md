@@ -156,6 +156,8 @@ idempotency. A deliberate second report in one session requires a distinct
 draft ID in the future conversation state design.
 The report node emits a summary and waits for explicit confirmation. Failure
 or correction resets the confirmation flag.
+Committed-report and generic tool-failure messages no longer imply staff
+review, matching, callback or staff notification.
 Live provider intent/extraction errors now propagate instead of invoking
 regex/keyword fallback; no-key mode retains legacy demo heuristics.
 Fresh text turns are reclassified, so a guidance question can interrupt a

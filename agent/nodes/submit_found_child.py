@@ -20,7 +20,7 @@ Outputs produced:
   tool_failures  — appended on failure
   errors         — appended on failure
 
-Phase 5 status: STUB — generates fake case_reference until MCP wired in Phase 6.
+The node returns a reference only from a committed gateway receipt.
 """
 
 from __future__ import annotations
@@ -36,9 +36,9 @@ logger = logging.getLogger(__name__)
 
 _TOOL_NAME = "submit_found_child_report"
 _SUCCESS_MSG = (
-    "Your report has been submitted. Reference number: {ref}.\n\n"
-    "Our team will review the details and follow up if a match is found in our records. "
-    "Please keep the child safe and in contact with local authorities."
+    "Your report was recorded in Wayfind. Reference number: {ref}.\n\n"
+    "This does not notify authorities or establish an official case. "
+    "Please contact the appropriate local authority directly."
 )
 _FAILURE_MSG = (
     "We were unable to submit your report at this moment due to a technical issue. "

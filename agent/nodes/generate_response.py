@@ -81,7 +81,8 @@ async def generate_response(state: WayfindState) -> dict:
     if tool_failures:
         msg = (
             "We encountered a technical issue while processing your request. "
-            "Our team has been notified. Please try again in a moment."
+            "Please try again in a moment. If a child needs immediate help, "
+            "contact the appropriate local authority directly."
         )
     else:
         msg = _FALLBACK_MSG

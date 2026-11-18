@@ -250,6 +250,9 @@ async def test_node_submit_found_child():
     assert res["case_reference"] == "WF-FOUND-999"
     assert next(event for event in res["agent_events"] if event["type"] == "submission_complete")["submitted_at"] == "2026-11-17T00:00:00Z"
     assert next(event for event in res["agent_events"] if event["type"] == "submission_complete")["schema_version"] == "FoundChildIntakeV1"
+    receipt_text = next(event["content"] for event in res["agent_events"] if event["type"] == "assistant_message")
+    assert "does not notify authorities" in receipt_text
+    assert "review" not in receipt_text.lower()
     first_key = mock_mcp.submit_found_child_report.call_args.kwargs["report"].submission_id
     assert first_key
     await submit_found_child(state)
@@ -352,3 +355,13 @@ async def test_node_generate_response():
     state["agent_events"] = [{"type": "search_started"}]
     res = await generate_response(state)
     assert len(res["agent_events"]) >= 1
+
+
+@pytest.mark.asyncio
+async def test_tool_failure_does_not_claim_staff_notification():
+    state = initial_state("tool-failure")
+    state["tool_failures"] = ["submit_found_child_report"]
+    res = await generate_response(state)
+    content = res["agent_events"][0]["content"].lower()
+    assert "notified" not in content
+    assert "contact the appropriate local authority" in content
