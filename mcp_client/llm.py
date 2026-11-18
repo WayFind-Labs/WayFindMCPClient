@@ -685,6 +685,7 @@ class WayfindLLM:
         self,
         missing_fields: list[str],
         context: list[dict] | None = None,
+        optional: bool = False,
     ) -> str:
         """Generate an empathetic, concise natural-language follow-up question."""
         if not missing_fields:
@@ -702,6 +703,7 @@ class WayfindLLM:
             "found_location": "where the child was found",
             "clothing": "what clothing the child was wearing",
             "hair_color": "the child's hair colour",
+            "current_circumstances": "whether the child appears hurt or needs immediate help",
         }
 
         if self._llm is not None:
@@ -715,7 +717,8 @@ class WayfindLLM:
                     f"The intake currently lacks: {', '.join(labels)}. "
                     "Ask at most one useful follow-up, without pressuring someone who already "
                     "said they do not know. Keep the response short, caring and clear. "
-                    "No report has been submitted by this follow-up operation."
+                    + ("The requested detail is optional. Say the user can skip it if unknown. " if optional else "")
+                    + "No report has been submitted by this follow-up operation."
                 )
                 response = await self._llm.ainvoke(conversation_messages(prompt, context))
                 content = getattr(response, "content", "")

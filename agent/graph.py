@@ -24,6 +24,7 @@ from agent.nodes import (
     evaluate_evidence,
     extract_structured_data,
     found_child_extract,
+    found_location_unavailable,
     generate_response,
     get_case_status_node,
     get_guidance_node,
@@ -111,6 +112,7 @@ def build_graph() -> CompiledStateGraph:
     g.add_node("human_review", human_review)
     g.add_node("no_match", no_match)
     g.add_node("found_child_extract", found_child_extract)
+    g.add_node("found_location_unavailable", found_location_unavailable)
     g.add_node("safety_guidance", safety_guidance)
     g.add_node("submit_found_child", submit_found_child)
     g.add_node("search_support_node", search_support_node)
@@ -134,9 +136,11 @@ def build_graph() -> CompiledStateGraph:
         {
             "incomplete": "ask_followup",
             "sufficient": "route_intent",
+            "location_unavailable": "found_location_unavailable",
         },
     )
     g.add_edge("ask_followup", END)
+    g.add_edge("found_location_unavailable", END)
 
     # ── 4. Intent Dispatch Branch ─────────────────────────────────────────────
     g.add_conditional_edges(

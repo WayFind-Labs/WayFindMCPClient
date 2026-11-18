@@ -289,6 +289,29 @@ async def test_found_child_without_location_sees_safety_before_intake():
 
 
 @pytest.mark.asyncio
+async def test_unknown_found_location_gives_assistance_without_submission():
+    mock_llm = MagicMock()
+    mock_llm.extract_intent = AsyncMock(return_value=MagicMock(intent=Intent.FOUND_CHILD, confidence=0.98))
+
+    async def extract(**kwargs):
+        kwargs["field_statuses"]["found_location"] = "unknown"
+        return FoundChildReport(found_location="unknown")
+
+    mock_llm.extract_found_child_report = AsyncMock(side_effect=extract)
+    set_llm(mock_llm)
+    mock_mcp = MagicMock()
+    mock_mcp.submit_found_child_report = AsyncMock()
+    set_mcp_client(mock_mcp)
+    state = initial_state("found-location-unknown")
+    state["user_prompt"] = "I do not know where the child was found."
+    result = await run_agent(state)
+    assert "immediate danger" in result["agent_events"][0]["content"]
+    assert "approximate place" in result["agent_events"][-1]["content"]
+    assert not any(event["type"] in {"request_information", "request_confirmation", "submission_complete"} for event in result["agent_events"])
+    mock_mcp.submit_found_child_report.assert_not_awaited()
+
+
+@pytest.mark.asyncio
 async def test_graph_found_child_pipeline():
     """Found child intent extracts report, gets safety guidance, and submits found child report."""
     mock_llm = MagicMock()

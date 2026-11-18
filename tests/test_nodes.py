@@ -110,6 +110,40 @@ async def test_node_check_completeness():
     assert res["followup_question"] is not None
 
 
+@pytest.mark.asyncio
+async def test_found_optional_details_are_offered_once_and_can_be_skipped():
+    set_llm(None)
+    state = initial_state("optional-found")
+    state["intent"] = Intent.FOUND_CHILD
+    state["found_child_report"] = FoundChildReport(found_location="Synthetic market")
+    state["found_field_statuses"] = {"approx_age": "unknown", "clothing": "declined"}
+    first = await check_completeness(state)
+    assert first["missing_information"] == ["current_circumstances"]
+    assert "skip" in first["followup_question"].lower()
+    state["found_optional_questions_asked"] = first["found_optional_questions_asked"]
+    state["found_field_statuses"]["current_circumstances"] = "unknown"
+    second = await check_completeness(state)
+    assert second["missing_information"] == ["identifying_features"]
+    state["found_optional_questions_asked"] = second["found_optional_questions_asked"]
+    state["found_field_statuses"]["identifying_features"] = "declined"
+    complete = await check_completeness(state)
+    assert complete["missing_information"] == []
+
+
+@pytest.mark.asyncio
+async def test_explicitly_unavailable_location_does_not_repeat_location_question():
+    from agent.state import completeness_router
+
+    state = initial_state("unknown-location")
+    state["intent"] = Intent.FOUND_CHILD
+    state["found_child_report"] = FoundChildReport(found_location="unknown")
+    state["found_field_statuses"] = {"found_location": "unknown"}
+    result = await check_completeness(state)
+    state.update(result)
+    assert result["followup_question"] is None
+    assert completeness_router(state) == "location_unavailable"
+
+
 def test_node_ask_followup():
     state = initial_state("s4")
     state["followup_question"] = "How old is the child?"

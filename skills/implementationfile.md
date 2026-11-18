@@ -163,6 +163,12 @@ response time or an automatic authority alert.
 Found-child draft state includes per-field known/unknown/declined status, with
 unasked represented by absence. Form selections and typed model output update
 it; later facts replace unavailable statuses.
+The MVP conversation policy is English-only. Urdu and Roman Urdu are deferred
+until a later evaluated language rollout.
+The found-child completeness route offers one optional observation per turn
+and records that it was offered. Unknown/declined optional details are not
+repeated. An explicitly unavailable location ends that turn with safety and
+direct-authority guidance, without a receipt.
 The report node emits a summary and waits for explicit confirmation. Failure
 or correction resets the confirmation flag.
 Committed-report and generic tool-failure messages no longer imply staff

@@ -126,6 +126,9 @@ class WayfindState(TypedDict):
     found_field_statuses: dict[str, str]
     """Per-field unasked, known, unknown or declined status for the active found draft."""
 
+    found_optional_questions_asked: list[str]
+    """Optional found-child fields already offered once in this draft."""
+
     # ── Completeness / follow-up ──────────────────────────────────────────────
     missing_information: list[str]
     """Field names that are still required before the agent can proceed.
@@ -260,6 +263,7 @@ def initial_state(session_id: str) -> WayfindState:
         found_child_report     = None,
         found_draft_id         = None,
         found_field_statuses   = {},
+        found_optional_questions_asked = [],
         missing_information    = [],
         followup_question      = None,
         user_location          = None,
@@ -293,6 +297,12 @@ def completeness_router(state: WayfindState) -> str:
         "incomplete" — missing_information is non-empty; route to ask_followup
         "sufficient" — all required fields present; route to route_intent
     """
+    if (
+        state.get("intent") == Intent.FOUND_CHILD
+        and "found_location" in state.get("missing_information", [])
+        and state.get("found_field_statuses", {}).get("found_location") in {"unknown", "declined"}
+    ):
+        return "location_unavailable"
     if state.get("missing_information"):
         return "incomplete"
     return "sufficient"

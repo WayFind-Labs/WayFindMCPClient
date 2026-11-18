@@ -225,6 +225,14 @@ for immediate action rather than promised an automatic alert.
 The found-child draft now carries per-field `known`, `unknown`, `declined` or
 unasked state. Explicit form choices and typed model extraction update those
 statuses; later corrections replace earlier unknown/declined values.
+The versioned runtime conversation policy is English-only for the MVP. Urdu
+and Roman Urdu conversational support are future work; no translation service
+or multilingual quality claim is active.
+After a coarse found location is known, the graph offers age, clothing,
+immediate condition and visible features one question at a time, each only
+once. They are optional; an unknown or declined value does not block a partial
+report. If the location itself is explicitly unavailable, the graph gives
+assistance and direct-authority guidance without claiming a report was saved.
 The graph emits `request_confirmation` with a review summary before recording.
 The committed-report message does not claim staff review, matching or authority
 notification; tool-failure copy does not claim staff were notified.

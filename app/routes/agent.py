@@ -89,6 +89,18 @@ async def get_session_snapshot(session_id: str, request: Request) -> list[AgentE
                 submitted_at=report.received_at,
                 schema_version="FoundChildIntakeV1",
             )]
+        missing = state.get("missing_information") or []
+        if missing and "found_location" in missing and (state.get("found_field_statuses") or {}).get("found_location") in {"unknown", "declined"}:
+            return [AgentEvent(
+                type="assistant_message",
+                content="Wayfind needs at least an approximate place or landmark to record this report. Contact the appropriate local authority directly for help; tell me the area if you learn it later.",
+            )]
+        if missing:
+            return [AgentEvent(
+                type="request_information",
+                content="Your draft is still open. Add this detail if known, or choose ‘Don’t know’.",
+                fields=missing[:1],
+            )]
         if report.found_location and report.found_location != "unknown" and state.get("found_draft_id"):
             return [AgentEvent(
                 type="request_confirmation",
@@ -151,6 +163,7 @@ async def handle_event(
         state["found_child_report"] = None
         state["found_draft_id"] = None
         state["found_field_statuses"] = {}
+        state["found_optional_questions_asked"] = []
         state["submission_confirmed"] = False
         state["last_form_data"] = None
         state["intent"] = None
@@ -165,6 +178,7 @@ async def handle_event(
         state["found_child_report"] = None
         state["found_draft_id"] = str(uuid.uuid4())
         state["found_field_statuses"] = {}
+        state["found_optional_questions_asked"] = []
         state["case_reference"] = None
         state["submission_confirmed"] = False
         state["last_form_data"] = None
@@ -289,6 +303,7 @@ def _initial_state(session_id: str) -> dict[str, Any]:
         "found_child_report":      None,
         "found_draft_id":          None,
         "found_field_statuses":    {},
+        "found_optional_questions_asked": [],
         "missing_information":     [],
         "followup_question":       None,
         "user_location":           None,

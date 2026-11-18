@@ -134,6 +134,12 @@ does not imply active monitoring or automatic authority notification.
 The found draft stores field status separately from report values. Form choices
 and the model's structured latest-turn extraction set explicit unknown or
 declined states; known corrections replace those states.
+The versioned runtime prompt currently targets English-only user-facing turns;
+Urdu and Roman Urdu are deferred roadmap languages.
+The completeness branch offers age, clothing, immediate condition and visible
+features progressively after a coarse location, using an asked-once list.
+Explicitly unavailable location routes to safety and direct-authority help
+without submission.
 Layerbase managed Redis over TLS is the local MVP shared state provider;
 agent state uses `wayfind:agent-state:` to avoid gateway hash collisions.
 The graph pauses on `request_confirmation` until a form response with

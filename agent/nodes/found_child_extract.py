@@ -34,6 +34,7 @@ from __future__ import annotations
 import logging
 
 from agent.state import WayfindState
+from mcp_client.conversation_context import INITIAL_FOUND_SAFETY
 from schemas.child import FoundChildReport
 
 logger = logging.getLogger(__name__)
@@ -42,6 +43,24 @@ _FOUND_LOCATION_QUESTION = (
     "Where exactly did you find the child? "
     "Please provide the neighbourhood, landmark, or street name."
 )
+
+
+def found_location_unavailable(state: WayfindState) -> dict:
+    """Keep safety guidance available when no coarse location can be reported."""
+    first_notice = not state.get("found_safety_delivered")
+    events = state.get("agent_events", []) + (
+        [{"type": "assistant_message", "content": INITIAL_FOUND_SAFETY}] if first_notice else []
+    )
+    events.append({
+        "type": "assistant_message",
+        "content": (
+            "I understand you cannot give a location right now. Wayfind cannot record a useful "
+            "found-child report without at least an approximate place or landmark. Please contact "
+            "the appropriate local authority directly for help. If you later learn the area, "
+            "tell me and we can continue the draft."
+        ),
+    })
+    return {"agent_events": events, "found_safety_delivered": True}
 
 
 async def found_child_extract(state: WayfindState) -> dict:

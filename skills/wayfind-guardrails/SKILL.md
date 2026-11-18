@@ -108,6 +108,11 @@ monitoring or response time, and must direct the finder to local authorities.
 Keep `known`, `unknown`, `declined` and unasked field states distinct in the
 active found draft. A correction may replace an unavailable value; never infer
 unknown or declined merely from silence.
+Offer useful optional found-child observations one at a time and at most once.
+The runtime policy speaks clear English in the MVP. Urdu and Roman Urdu
+conversation support requires later implementation and evaluation.
+An explicitly unavailable location needs an assistance outcome and no saved
+report; do not repeatedly ask for a place the finder cannot provide.
 Layerbase managed Redis over TLS is the shared local MVP state provider;
 agent and gateway key namespaces are distinct.
 The found-report node requires an explicit confirmation event before a write.
