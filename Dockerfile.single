@@ -37,6 +37,7 @@ COPY --from=python-build /workspace/agent /workspace/agent
 COPY --from=python-build /workspace/gateway /workspace/gateway
 COPY scripts/single_container.py /opt/wayfind/single_container.py
 RUN node --version \
+    && cd /workspace/agent \
     && /workspace/agent/.venv/bin/python -c "import app.main, mcp_server.server" \
     && cd /workspace/gateway \
     && /workspace/gateway/.venv/bin/python -c "import app.main, db.migrate"
