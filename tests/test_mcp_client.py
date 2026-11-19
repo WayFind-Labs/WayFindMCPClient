@@ -203,7 +203,7 @@ async def test_nodes_with_wired_clients(llm, mcp):
     # 5. submit_found_child node
     found_state = initial_state("test-found")
     found_state["user_prompt"] = "I found a child"
-    found_state["found_child_report"] = FoundChildReport(found_location="Bus Stand")
+    found_state["found_child_report"] = FoundChildReport(found_location="Bus Stand", reporter_name="Synthetic Finder", reporter_contact="+1 202 555 0131")
     out_submit = await submit_found_child(found_state)
     assert "case_reference" not in out_submit
     assert any(e.get("type") == "request_confirmation" for e in out_submit["agent_events"])

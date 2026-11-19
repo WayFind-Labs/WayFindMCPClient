@@ -104,7 +104,7 @@ async def test_submit_found_child_tool_failure_handling():
     set_mcp_client(mock_mcp)
 
     state = initial_state("sess-fail-fc")
-    state["found_child_report"] = FoundChildReport(found_location="Liberty Market")
+    state["found_child_report"] = FoundChildReport(found_location="Liberty Market", reporter_name="Synthetic Finder", reporter_contact="+1 202 555 0131")
     state["submission_confirmed"] = True
 
     result = await submit_found_child(state)

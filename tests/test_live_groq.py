@@ -40,6 +40,19 @@ async def test_live_groq_found_child_intake():
     assert field_statuses["found_location"] == "known"
     assert field_statuses["clothing"] == "known"
     assert field_statuses["approx_age"] == "known"
+    with_contact = await llm.extract_found_child_report(
+        existing_report=report,
+        prompt="My full name is Synthetic Finder. You can reach me at +1 202 555 0131.",
+    )
+    assert with_contact.reporter_name == "Synthetic Finder"
+    assert with_contact.reporter_contact == "+1 202 555 0131"
+    question = await llm.generate_followup_question(
+        ["identifying_features"],
+        context=[{"role": "user", "content": "I do not know the child's age or clothing."}],
+        optional=True,
+    )
+    assert question.count("?") == 1
+    assert len(question) <= 180
     state = initial_state("synthetic-groq-guidance")
     state["user_prompt"] = "Can I post the child's photo and location on social media?"
     guidance = await llm.generate_guidance_response(state)

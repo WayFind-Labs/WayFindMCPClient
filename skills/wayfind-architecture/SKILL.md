@@ -163,6 +163,18 @@ for nondefault credentials, initialized model, Redis ping and MCP SSE endpoint.
 The gateway uses `/ready` with the shared internal key.
 The LLM's structured found-child extraction merges corrections into a
 validated `FoundChildReport`, including age ranges.
+The same extractor accepts a finder-supplied full name and phone from natural
+chat or form data. Completeness asks optional child observations once, then
+requires finder name and phone. The submit node enforces that gate even if a
+confirmed draft reaches it directly. Found intake emits chat questions without
+`request_information` cards. Runtime policy v4 and structured Groq guidance
+keep user-facing replies short and action-first; invalid guidance falls back
+to static safety help.
+The follow-up schema has an optional short acknowledgment ahead of one question.
+The agent snapshot route maps an unfinished found intake to `assistant_message`
+and preserves review/receipt events for completed stages.
+The recovery question is derived from `missing_information` so Redis snapshots
+do not depend on conversational history being present.
 Fresh text turns are reclassified so guidance questions can interrupt intake;
 form answers retain the active draft intent. Groq structured extraction uses
 JSON Schema mode rather than function calling.

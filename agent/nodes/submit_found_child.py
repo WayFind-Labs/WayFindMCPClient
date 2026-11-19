@@ -112,6 +112,23 @@ async def submit_found_child(state: WayfindState) -> dict:
             "errors": state.get("errors", []) + ["submit_found_child: no report in state"],
         }
 
+    if isinstance(report, dict):
+        report = FoundChildReport(**report)
+    if (
+        not report.reporter_name
+        or len(report.reporter_name.strip().split()) < 2
+        or not report.reporter_contact
+        or not 7 <= sum(char.isdigit() for char in report.reporter_contact) <= 15
+        or any(char not in "+-() .0123456789" for char in report.reporter_contact)
+    ):
+        return {
+            "agent_events": existing_events + [{
+                "type": "error",
+                "message": "Before recording a report, please share your full name and a phone number where the admin can reach you. You can type them here.",
+            }],
+            "submission_confirmed": False,
+        }
+
     if not state.get("submission_confirmed"):
         if isinstance(report, dict):
             report = FoundChildReport(**report)

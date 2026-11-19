@@ -57,8 +57,8 @@ UNAVAILABLE_GUIDANCE = (
 )
 
 INITIAL_FOUND_SAFETY = (
-    "Is the child in immediate danger or hurt? If so, call the appropriate "
-    "local emergency service now. Stay with the child in a safe, visible "
-    "public place. Do not take them home or share their photo or location "
-    "online. A Wayfind conversation does not contact authorities."
+    "If the child is in immediate danger or seriously hurt, move to safety "
+    "and call local emergency services now.\n\n"
+    "Stay with the child in a visible public place. Do not take them home "
+    "or share their photo or location online. Wayfind does not contact authorities."
 )

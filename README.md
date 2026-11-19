@@ -268,11 +268,25 @@ reference for the dedicated receipt UI.
 The `FoundChildIntakeV1` report and receipt event share an explicit schema
 version; age and height bounds match the gateway contract.
 The pre-submit review includes known age, appearance, location, time,
-circumstances, authority-contact status and optional reporter details.
+circumstances, authority-contact status and the finder's required full name and phone.
 Structured extraction applies new facts as corrections to prior report fields
 and validates the merged canonical report; approximate ages retain bounds.
 `tests/test_live_groq.py` is an opt-in synthetic rehearsal for configured
 Groq intent, structured fields and photo-sharing safety guidance.
+The finder now gives a full name and phone number before report review or
+submission; the agent extracts these from ordinary chat and the submit node
+checks them again. Found-child follow-ups use one chat question at a time,
+without an inline form card. Reporter contact appears in the private review
+summary, never in the receipt. A versioned runtime guidance asset controls
+short, action-first English responses; structured Groq follow-ups and guidance
+are checked for length, formatting and unverified emergency number examples.
+The follow-up model may add one brief, grounded acknowledgment before its
+single question to keep the exchange calm without adding a second request.
+The authenticated snapshot restores an unfinished found-child intake as a
+chat question, not a form card; review and committed receipt snapshots retain
+their existing event types.
+When dialogue history is unavailable, recovery derives the question from the
+current missing field instead of showing a generic placeholder.
 The MVP shared Redis provider is Layerbase managed Redis over TLS (`rediss://`),
 configured only in ignored local environment files. Agent conversation state
 uses `wayfind:agent-state:` keys, separate from gateway session hashes under

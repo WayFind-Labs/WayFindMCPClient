@@ -47,7 +47,9 @@ from pydantic import BaseModel, Field
 
 from app.session import SessionStore
 from schemas.child import FoundChildReport
+from agent.nodes.check_completeness import _build_followup_question, _FOUND_OPTIONAL_FIELDS
 from agent.nodes.submit_found_child import found_report_review_text
+from agent.state import Intent
 
 logger = logging.getLogger(__name__)
 
@@ -96,10 +98,12 @@ async def get_session_snapshot(session_id: str, request: Request) -> list[AgentE
                 content="Wayfind needs at least an approximate place or landmark to record this report. Contact the appropriate local authority directly for help; tell me the area if you learn it later.",
             )]
         if missing:
+            question = _build_followup_question(missing[:1], Intent.FOUND_CHILD)
+            if missing[0] in _FOUND_OPTIONAL_FIELDS:
+                question += " You can say if you don't know."
             return [AgentEvent(
-                type="request_information",
-                content="Your draft is still open. Add this detail if known, or choose ‘Don’t know’.",
-                fields=missing[:1],
+                type="assistant_message",
+                content=f"Your draft is still open.\n\n{question}",
             )]
         if report.found_location and report.found_location != "unknown" and state.get("found_draft_id"):
             return [AgentEvent(
@@ -107,10 +111,7 @@ async def get_session_snapshot(session_id: str, request: Request) -> list[AgentE
                 content=found_report_review_text(report),
                 draft_id=state["found_draft_id"],
             )]
-        return [
-            AgentEvent(type="assistant_message", content="Your report draft is still open. Where did you find the child?"),
-            AgentEvent(type="request_information", fields=["found_location"]),
-        ]
+        return [AgentEvent(type="assistant_message", content="Your report draft is still open. Where did you find the child?")]
     if state.get("found_draft_id"):
         return [AgentEvent(type="assistant_message", content="Your new report draft is ready. Tell me where you found the child.")]
     return []

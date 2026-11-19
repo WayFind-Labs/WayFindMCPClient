@@ -122,3 +122,16 @@ Carry the backend receipt timestamp into `submission_complete`.
 Use the `FoundChildIntakeV1` schema version in the report and receipt event.
 Show known report details in the confirmation summary before any write.
 Structured corrections replace prior report facts and are validated.
+Found-child reports require the finder's full name and a reachable phone
+number before confirmation or submission. Extract contact only when the finder
+supplies their own details; keep it out of the receipt and public responses.
+Ask one short chat question per intake turn. The `found-child-intake-v4`
+runtime policy gives action-first, plain-English guidance with no long list or
+unverified emergency number. Groq follow-ups and guidance use structured
+output contracts; invalid output fails to reviewed static safety text.
+A follow-up may briefly acknowledge the finder, but cannot assert unobserved
+safety or authority action.
+Session snapshot recovery must return a chat question for unfinished found
+intake; it must not reintroduce a mandatory form card.
+Derive a field-specific recovery question from the current missing field if
+the prior assistant wording is unavailable.

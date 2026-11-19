@@ -162,6 +162,23 @@ async def test_snapshot_restores_only_review_or_committed_receipt():
 
 
 @pytest.mark.asyncio
+async def test_snapshot_restores_chat_question_without_a_form():
+    app = create_app()
+    store = MemorySessionStore()
+    app.state.session_store = store
+    state = _initial_state("chat-resume")
+    state["found_child_report"] = {"found_location": "unknown"}
+    state["missing_information"] = ["found_location", "reporter_name", "reporter_contact"]
+    state["conversation_history"] = [{"role": "assistant", "content": "Where did you find the child?"}]
+    await store.set("chat-resume", state)
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        response = await client.get("/internal/sessions/chat-resume/snapshot", headers={"X-Internal-Key": INTERNAL_KEY})
+    assert response.status_code == 200
+    assert [event["type"] for event in response.json()] == ["assistant_message"]
+    assert "where you found the child" in response.json()[0]["content"]
+
+
+@pytest.mark.asyncio
 async def test_internal_api_auth_validation():
     """Verify auth behavior on POST /internal/sessions/{id}/events."""
     app = create_app()

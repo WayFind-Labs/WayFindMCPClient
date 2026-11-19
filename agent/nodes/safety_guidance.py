@@ -17,6 +17,15 @@ logger = logging.getLogger(__name__)
 
 async def safety_guidance(state: WayfindState) -> dict:
     """Generate contextual guidance or disclose model unavailability."""
+    if state.get("intent") == Intent.FOUND_CHILD:
+        if state.get("found_safety_delivered"):
+            return {}
+        return {
+            "agent_events": state.get("agent_events", []) + [
+                {"type": "assistant_message", "content": INITIAL_FOUND_SAFETY}
+            ],
+            "found_safety_delivered": True,
+        }
     guidance_text = UNAVAILABLE_GUIDANCE
     llm = get_llm()
     if llm is not None:

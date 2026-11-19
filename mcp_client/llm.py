@@ -154,6 +154,8 @@ class _FoundChildLLM(BaseModel):
         default=None,
         description="Where the child is right now (e.g., 'with reporter at police station').",
     )
+    reporter_name: str | None = Field(default=None, description="Finder's full name, only when explicitly supplied by the finder.")
+    reporter_contact: str | None = Field(default=None, description="Finder's phone number, only when explicitly supplied by the finder. Do not infer from a child's details.")
     unknown_fields: list[str] = Field(
         default_factory=list,
         description="Report field names the user explicitly says they do not know in this latest turn.",
@@ -162,6 +164,18 @@ class _FoundChildLLM(BaseModel):
         default_factory=list,
         description="Report field names the user explicitly declines to provide in this latest turn.",
     )
+
+
+class _FollowupLLM(BaseModel):
+    target_field: str = Field(description="The exact field name requested by the caller.")
+    acknowledgment: str | None = Field(default=None, description="One brief, calm acknowledgment grounded in the user's latest message, or null.")
+    question: str = Field(description="One short, natural English question about that field only.")
+
+
+class _GuidanceLLM(BaseModel):
+    action: str = Field(description="The most useful immediate action, in one short plain-English sentence.")
+    context: str | None = Field(default=None, description="One short sentence explaining the next safe step, or null if unnecessary.")
+    question: str | None = Field(default=None, description="At most one short clarification, or null. Never delay urgent action to ask it.")
 
 
 class WayfindLLM:
@@ -571,6 +585,9 @@ class WayfindLLM:
                 updates["current_circumstances"] = str(form_data["current_circumstances"])
             if form_data.get("authorities_contacted") is not None:
                 updates["authorities_contacted"] = bool(form_data["authorities_contacted"])
+            for field in ("reporter_name", "reporter_contact"):
+                if form_data.get(field):
+                    updates[field] = str(form_data[field]).strip()
 
         for field in updates:
             if field in status_fields and statuses.get(field) not in {"unknown", "declined"}:
@@ -592,7 +609,9 @@ class WayfindLLM:
                     "6. If the user explicitly does not know a detail, put its report field name in unknown_fields. "
                     "If they explicitly refuse to give it, use declined_fields. Allowed names: "
                     "found_location, approx_age, gender, clothing, identifying_features, current_circumstances. "
-                    "Do not infer unknown or declined from silence."
+                    "Do not infer unknown or declined from silence.\n"
+                    "7. reporter_name and reporter_contact belong to the FINDER, never the child. "
+                    "Extract them only when the finder explicitly gives their own full name or phone."
                 )
 
                 structured_llm = self._structured_output(_FoundChildLLM)
@@ -626,6 +645,10 @@ class WayfindLLM:
                     ))
                 if extracted.current_status:
                     llm_updates["description"] = extracted.current_status
+                if extracted.reporter_name:
+                    llm_updates["reporter_name"] = extracted.reporter_name.strip()
+                if extracted.reporter_contact:
+                    llm_updates["reporter_contact"] = extracted.reporter_contact.strip()
 
                 for field in llm_updates:
                     if field in status_fields:
@@ -704,28 +727,48 @@ class WayfindLLM:
             "clothing": "what clothing the child was wearing",
             "hair_color": "the child's hair colour",
             "current_circumstances": "whether the child appears hurt or needs immediate help",
+            "reporter_name": "your full name, so the admin can contact you about this report",
+            "reporter_contact": "a phone number where the admin can reach you about this report",
         }
 
         if self._llm is not None:
             try:
-                labels = [field_labels.get(f, f.replace("_", " ")) for f in missing_fields[:2]]
+                target_field = missing_fields[0]
+                label = field_labels.get(target_field, target_field.replace("_", " "))
                 prompt = (
-                    "Respond to the latest user message using the guidance and dialogue. "
-                    "Answer any safety question or urgent concern before continuing intake. "
-                    "If this is the start of a found-child conversation, give brief immediate "
-                    "safety guidance even though intake details are missing. "
-                    f"The intake currently lacks: {', '.join(labels)}. "
-                    "Ask at most one useful follow-up, without pressuring someone who already "
-                    "said they do not know. Keep the response short, caring and clear. "
-                    + ("The requested detail is optional. Say the user can skip it if unknown. " if optional else "")
-                    + "No report has been submitted by this follow-up operation."
+                    "Return one natural English follow-up question and, if useful, one brief "
+                    "acknowledgment of what the finder just shared. The interface already "
+                    "shows immediate safety guidance. Do not add a checklist, emergency number, "
+                    "new fact, or second question. Do not mention a different field. "
+                    "The acknowledgment must be under 70 characters and must not assume "
+                    "the child is safe, unhurt, or that anyone was contacted. "
+                    f"Set target_field exactly to {target_field!r}. Ask only about {label}. "
+                    "Keep question under 180 characters, with no Markdown. "
+                    + ("This field is optional; say it can be skipped if unknown. " if optional else "")
                 )
-                response = await self._llm.ainvoke(conversation_messages(prompt, context))
-                content = getattr(response, "content", "")
-                if isinstance(content, str) and content.strip():
-                    return content.strip()
+                response: _FollowupLLM = await self._structured_output(_FollowupLLM).ainvoke(
+                    conversation_messages(prompt, context)
+                )
+                question = response.question.strip()
+                acknowledgment = (response.acknowledgment or "").strip()
+                reply = f"{acknowledgment}\n\n{question}" if acknowledgment else question
+                if (
+                    response.target_field == target_field
+                    and len(reply) <= 180
+                    and question.count("?") == 1
+                    and "\n" not in question
+                    and len(acknowledgment) <= 70
+                    and "?" not in acknowledgment
+                    and "\n" not in acknowledgment
+                    and not any(char.isdigit() for char in reply)
+                    and not any(mark in reply for mark in ("*", "#"))
+                ):
+                    return reply
+                raise ValueError("Follow-up did not match the requested field contract")
             except Exception as exc:
                 logger.warning("LLM generate_followup_question failed: %s", exc)
+                if self.api_key:
+                    raise RuntimeError("Follow-up model unavailable") from exc
 
         # Fallback template
         labels = [field_labels.get(f, f.replace("_", " ")) for f in missing_fields[:2]]
@@ -741,22 +784,34 @@ class WayfindLLM:
         if self._llm is None:
             raise RuntimeError("Conversation model is unavailable")
         task = (
-            "Give concise, practical guidance for the user's current situation. "
-            "Answer their latest question directly, prioritize immediate danger, "
-            "and ask at most one clarification if needed. Use the supplied location-neutral "
-            "guidance and recent dialogue. This operation only provides guidance: "
-            "it does not save a report, record audio, contact an authority or verify "
-            "a guardian. Previous assistant claims are not verified tool receipts."
+            "Answer the latest question with an action first. If there may be immediate danger, "
+            "say to move to safety and contact local emergency services now before any other text. "
+            "Use the supplied location-neutral guidance and dialogue. Keep action under 140 "
+            "characters, context under 160, and question under 100. Use plain English. "
+            "No lists, Markdown, headings, parenthetical examples or emergency number examples. "
+            "Do not assume the child is safe, healthy, uninjured or in a particular country. "
+            "At most one question, and only after the action. This operation does not save a "
+            "report, record audio, contact an authority or verify a guardian. Previous "
+            "assistant claims are not verified tool receipts."
         )
-        response = await self._llm.ainvoke(conversation_messages(
+        response: _GuidanceLLM = await self._structured_output(_GuidanceLLM).ainvoke(conversation_messages(
             task,
             state.get("conversation_history", []),
             state.get("user_prompt", ""),
         ))
-        content = getattr(response, "content", "")
-        if not isinstance(content, str) or not content.strip():
-            raise ValueError("Conversation model returned an empty guidance response")
-        return content.strip()
+        parts = [response.action.strip(), (response.context or "").strip(), (response.question or "").strip()]
+        if (
+            not parts[0]
+            or len(parts[0]) > 140
+            or len(parts[1]) > 160
+            or len(parts[2]) > 100
+            or any("\n" in part or any(mark in part for mark in ("*", "#")) for part in parts)
+            or any(char.isdigit() for part in parts for char in part)
+            or "?" in parts[0] or "?" in parts[1]
+            or (parts[2] and parts[2].count("?") != 1)
+        ):
+            raise ValueError("Conversation model returned guidance outside the short safety contract")
+        return "\n\n".join(part for part in parts if part)
 
     # ── Final Response Generation ─────────────────────────────────────────────
 

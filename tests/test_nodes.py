@@ -127,7 +127,7 @@ async def test_found_optional_details_are_offered_once_and_can_be_skipped():
     state["found_optional_questions_asked"] = second["found_optional_questions_asked"]
     state["found_field_statuses"]["identifying_features"] = "declined"
     complete = await check_completeness(state)
-    assert complete["missing_information"] == []
+    assert complete["missing_information"] == ["reporter_name", "reporter_contact"]
 
 
 @pytest.mark.asyncio
@@ -165,12 +165,12 @@ def test_first_found_followup_delivers_safety_before_location_request():
     assert first["agent_events"][0]["type"] == "assistant_message"
     assert "immediate danger" in first["agent_events"][0]["content"]
     assert first["agent_events"][1]["content"] == "Where did you find the child?"
-    assert first["agent_events"][2]["type"] == "request_information"
+    assert len(first["agent_events"]) == 2
     assert first["found_safety_delivered"] is True
 
     state["found_safety_delivered"] = True
     later = ask_followup(state)
-    assert len(later["agent_events"]) == 2
+    assert len(later["agent_events"]) == 1
 
 
 def test_node_route_intent():
@@ -308,7 +308,7 @@ async def test_found_safety_survives_model_outage():
     state["intent"] = Intent.FOUND_CHILD
     res = await safety_guidance(state)
     assert "immediate danger" in res["agent_events"][0]["content"]
-    assert "unavailable" in res["agent_events"][1]["content"]
+    assert len(res["agent_events"]) == 1
     assert res["found_safety_delivered"] is True
 
 
@@ -321,7 +321,7 @@ async def test_node_submit_found_child():
     set_mcp_client(mock_mcp)
 
     state = initial_state("s15")
-    state["found_child_report"] = FoundChildReport(found_location="Mall Road")
+    state["found_child_report"] = FoundChildReport(found_location="Mall Road", reporter_name="Synthetic Finder", reporter_contact="+1 202 555 0131")
     review = await submit_found_child(state)
     assert any(event["type"] == "request_confirmation" for event in review["agent_events"])
     assert "Found near: Mall Road" in review["agent_events"][-1]["content"]
@@ -332,6 +332,7 @@ async def test_node_submit_found_child():
     assert next(event for event in res["agent_events"] if event["type"] == "submission_complete")["submitted_at"] == "2026-11-17T00:00:00Z"
     assert next(event for event in res["agent_events"] if event["type"] == "submission_complete")["schema_version"] == "FoundChildIntakeV1"
     receipt_text = next(event["content"] for event in res["agent_events"] if event["type"] == "assistant_message")
+    assert "+1 202 555 0131" not in receipt_text
     assert "does not notify authorities" in receipt_text
     assert "reviewed irregularly" in receipt_text
     assert "no guaranteed monitoring" in receipt_text
@@ -352,12 +353,26 @@ async def test_node_submit_found_child():
 
 
 @pytest.mark.asyncio
+async def test_found_report_cannot_submit_without_finder_contact():
+    mock_mcp = MagicMock()
+    mock_mcp.submit_found_child_report = AsyncMock()
+    set_mcp_client(mock_mcp)
+    state = initial_state("no-finder-contact")
+    state["found_child_report"] = FoundChildReport(found_location="Synthetic market")
+    state["submission_confirmed"] = True
+    result = await submit_found_child(state)
+    assert "full name" in result["agent_events"][-1]["message"]
+    assert result["submission_confirmed"] is False
+    mock_mcp.submit_found_child_report.assert_not_called()
+
+
+@pytest.mark.asyncio
 async def test_found_report_review_includes_collected_details():
     state = initial_state("review-details")
     state["found_child_report"] = FoundChildReport(
         found_location="Market", approx_age=AgeRange(min=5, max=7),
         clothing=["red shirt"], identifying_features=["glasses"],
-        authorities_contacted=False, reporter_contact="synthetic@example.invalid",
+        authorities_contacted=False, reporter_name="Synthetic Finder", reporter_contact="+1 202 555 0131",
     )
     result = await submit_found_child(state)
     summary = result["agent_events"][-1]["content"]
@@ -365,7 +380,7 @@ async def test_found_report_review_includes_collected_details():
     assert "Clothing: red shirt" in summary
     assert "Visible features: glasses" in summary
     assert "Authorities contacted: no" in summary
-    assert "synthetic@example.invalid" in summary
+    assert "+1 202 555 0131" in summary
 
 
 @pytest.mark.asyncio

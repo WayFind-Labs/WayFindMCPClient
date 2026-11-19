@@ -9,14 +9,15 @@ from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 from agent.dependencies import set_llm
 from agent.nodes.get_guidance import get_guidance_node
 from agent.nodes.safety_guidance import safety_guidance
-from agent.state import initial_state
+from agent.state import Intent, initial_state
 from mcp_client.conversation_context import (
     UNAVAILABLE_GUIDANCE,
     conversation_messages,
     load_conversation_guidance,
 )
 from mcp_client.llm import WayfindLLM
-from mcp_client.llm import _FoundChildLLM
+from mcp_client.llm import _FollowupLLM, _FoundChildLLM, _GuidanceLLM
+from schemas.child import FoundChildReport
 
 
 @pytest.fixture(autouse=True)
@@ -30,7 +31,8 @@ def test_knowledge_loads_outside_checkout(monkeypatch, tmp_path):
     monkeypatch.chdir(tmp_path)
     load_conversation_guidance.cache_clear()
     text = load_conversation_guidance()
-    assert "found-child-intake-v3" in text
+    assert "found-child-intake-v4" in text
+    assert "finder's full name and phone" in text
     assert "Use clear, natural English for this MVP" in text
     assert "Urdu and Roman Urdu" in text
     assert "Conversation audio recording and transcription are POST-MVP and disabled" in text
@@ -55,28 +57,73 @@ def test_history_roles_cannot_inject_system_or_tool_authority():
 @pytest.mark.asyncio
 async def test_followup_actually_sends_knowledge_and_dialogue_to_model():
     llm = WayfindLLM(api_key="")
-    llm._llm = SimpleNamespace(ainvoke=AsyncMock(return_value=SimpleNamespace(content="Stay nearby. Which city are you in?")))
+    invoke = AsyncMock(return_value=_FollowupLLM(target_field="found_location", question="Where did you find the child?"))
+    llm._llm = SimpleNamespace(with_structured_output=lambda _model: SimpleNamespace(ainvoke=invoke))
     history = [{"role": "user", "content": "I found a child. Can I post their photo?"}]
     reply = await llm.generate_followup_question(["found_location"], history)
-    messages = llm._llm.ainvoke.call_args.args[0]
+    messages = invoke.call_args.args[0]
     assert messages[0]["content"] == load_conversation_guidance()
     assert messages[-1] == history[-1]
-    assert "Answer any safety question" in messages[1]["content"]
-    assert reply == "Stay nearby. Which city are you in?"
+    assert "Ask only about where the child was found" in messages[1]["content"]
+    assert reply == "Where did you find the child?"
+
+
+@pytest.mark.asyncio
+async def test_mismatched_followup_is_rejected_and_provider_error_is_visible():
+    llm = WayfindLLM(api_key="")
+    llm._llm = SimpleNamespace(with_structured_output=lambda _model: SimpleNamespace(
+        ainvoke=AsyncMock(return_value=_FollowupLLM(target_field="authorities_contacted", question="Did you call police?"))
+    ))
+    fallback = await llm.generate_followup_question(["identifying_features"], optional=True)
+    assert "distinguishing" in fallback.lower()
+    llm.api_key = "configured-test-key"
+    with pytest.raises(RuntimeError, match="Follow-up model unavailable"):
+        await llm.generate_followup_question(["identifying_features"], optional=True)
+
+
+@pytest.mark.asyncio
+async def test_followup_can_acknowledge_finder_without_adding_a_second_question():
+    llm = WayfindLLM(api_key="")
+    llm._llm = SimpleNamespace(with_structured_output=lambda _model: SimpleNamespace(
+        ainvoke=AsyncMock(return_value=_FollowupLLM(
+            target_field="found_location", acknowledgment="I hear you. We can take this one step at a time.",
+            question="Where did you find the child?",
+        ))
+    ))
+    answer = await llm.generate_followup_question(["found_location"])
+    assert answer.split("\n\n") == ["I hear you. We can take this one step at a time.", "Where did you find the child?"]
+    assert answer.count("?") == 1
+
+
+@pytest.mark.asyncio
+async def test_finder_contact_is_extracted_from_chat_and_corrects_draft():
+    llm = WayfindLLM(api_key="")
+    invoke = AsyncMock(return_value=_FoundChildLLM(
+        reporter_name="Synthetic Finder", reporter_contact="+1 202 555 0131"
+    ))
+    llm._llm = SimpleNamespace(with_structured_output=lambda _model: SimpleNamespace(ainvoke=invoke))
+    report = await llm.extract_found_child_report(
+        FoundChildReport(found_location="Synthetic market"),
+        "My full name is Synthetic Finder. Call me at +1 202 555 0131.",
+    )
+    assert report.reporter_name == "Synthetic Finder"
+    assert report.reporter_contact == "+1 202 555 0131"
+    assert "FINDER, never the child" in invoke.call_args.args[0][0]["content"]
 
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("node", [safety_guidance, get_guidance_node])
 async def test_guidance_nodes_use_real_contextual_llm_path(node):
     llm = WayfindLLM(api_key="")
-    llm._llm = SimpleNamespace(ainvoke=AsyncMock(return_value=SimpleNamespace(content="Do not record the conversation; describe the situation in text.")))
+    invoke = AsyncMock(return_value=_GuidanceLLM(action="Do not record the conversation.", context="Describe the situation in text."))
+    llm._llm = SimpleNamespace(with_structured_output=lambda _schema: SimpleNamespace(ainvoke=invoke))
     set_llm(llm)
     state = initial_state("synthetic-guidance")
     state["user_prompt"] = "Can I record what the child tells me in Wayfind?"
     state["conversation_history"] = [{"role": "user", "content": "I found a child in Lahore."}]
     state["agent_events"] = [{"type": "request_information", "fields": ["found_location"]}]
     result = await node(state)
-    messages = llm._llm.ainvoke.call_args.args[0]
+    messages = invoke.call_args.args[0]
     assert messages[0]["content"] == load_conversation_guidance()
     assert messages[-1]["content"] == state["user_prompt"]
     assert messages[-2]["content"] == "I found a child in Lahore."
@@ -86,16 +133,43 @@ async def test_guidance_nodes_use_real_contextual_llm_path(node):
 
 
 @pytest.mark.asyncio
+async def test_found_intake_does_not_add_unverified_model_narration():
+    llm = SimpleNamespace(generate_guidance_response=AsyncMock(return_value="Call 911 now."))
+    set_llm(llm)
+    state = initial_state("found-intake-only")
+    state["intent"] = Intent.FOUND_CHILD
+    first = await safety_guidance(state)
+    assert len(first["agent_events"]) == 1
+    assert "911" not in first["agent_events"][0]["content"]
+    state.update(first)
+    assert await safety_guidance(state) == {}
+    llm.generate_guidance_response.assert_not_awaited()
+
+
+@pytest.mark.asyncio
 @pytest.mark.parametrize("failure", ["exception", "empty", "no_model"])
 async def test_guidance_failure_is_explicit_without_fake_receipt(failure):
     llm = WayfindLLM(api_key="")
     if failure == "exception":
-        llm._llm = SimpleNamespace(ainvoke=AsyncMock(side_effect=RuntimeError("offline")))
+        invoke = AsyncMock(side_effect=RuntimeError("offline"))
     elif failure == "empty":
-        llm._llm = SimpleNamespace(ainvoke=AsyncMock(return_value=SimpleNamespace(content="")))
+        invoke = AsyncMock(return_value=_GuidanceLLM(action=""))
+    if failure != "no_model":
+        llm._llm = SimpleNamespace(with_structured_output=lambda _schema: SimpleNamespace(ainvoke=invoke))
     set_llm(llm)
     result = await safety_guidance(initial_state("synthetic-failure"))
     assert result == {"agent_events": [{"type": "assistant_message", "content": UNAVAILABLE_GUIDANCE}]}
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("action", ["Call 911 now.", "* Call your local emergency service.", "A" * 141])
+async def test_guidance_rejects_unverified_or_unreadable_model_text(action):
+    llm = WayfindLLM(api_key="")
+    llm._llm = SimpleNamespace(with_structured_output=lambda _schema: SimpleNamespace(
+        ainvoke=AsyncMock(return_value=_GuidanceLLM(action=action))
+    ))
+    with pytest.raises(ValueError, match="short safety contract"):
+        await llm.generate_guidance_response(initial_state("unsafe-guidance"))
 
 
 @pytest.mark.asyncio

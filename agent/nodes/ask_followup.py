@@ -58,7 +58,7 @@ def ask_followup(state: WayfindState) -> dict:
     if first_found_turn:
         new_events.append({"type": "assistant_message", "content": INITIAL_FOUND_SAFETY})
     new_events.append({"type": "assistant_message", "content": question})
-    if missing:
+    if missing and state.get("intent") != Intent.FOUND_CHILD:
         new_events.append({"type": "request_information", "fields": missing})
 
     # Append assistant turn to conversation history

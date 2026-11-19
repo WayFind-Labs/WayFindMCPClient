@@ -284,7 +284,7 @@ async def test_found_child_without_location_sees_safety_before_intake():
     events = result["agent_events"]
     assert "immediate danger" in events[0]["content"]
     assert events[1]["content"] == "Where did you find the child?"
-    assert events[2]["type"] == "request_information"
+    assert all(event["type"] != "request_information" for event in events)
     assert result["found_safety_delivered"] is True
 
 
@@ -313,7 +313,7 @@ async def test_unknown_found_location_gives_assistance_without_submission():
 
 @pytest.mark.asyncio
 async def test_graph_found_child_pipeline():
-    """Found child intent extracts report, gets safety guidance, and submits found child report."""
+    """Found child intake asks for required finder contact before submission."""
     mock_llm = MagicMock()
     mock_llm.extract_intent = AsyncMock(
         return_value=MagicMock(intent=Intent.FOUND_CHILD, confidence=0.98)
@@ -325,6 +325,7 @@ async def test_graph_found_child_pipeline():
             gender="male",
         )
     )
+    mock_llm.generate_followup_question = AsyncMock(return_value="What is your full name?")
     set_llm(mock_llm)
 
     mock_mcp = MagicMock()
@@ -347,11 +348,12 @@ async def test_graph_found_child_pipeline():
     result = await run_agent(state)
 
     assert result["intent"] == Intent.FOUND_CHILD
-    assert result["case_reference"] == "WF-FOUND-2026-0001"
+    assert result.get("case_reference") is None
 
     event_types = [e["type"] for e in result["agent_events"]]
-    assert "submission_complete" in event_types
-    assert result["found_draft_id"]
+    assert "submission_complete" not in event_types
+    assert "assistant_message" in event_types
+    mock_mcp.submit_found_child_report.assert_not_called()
 
 
 @pytest.mark.asyncio
