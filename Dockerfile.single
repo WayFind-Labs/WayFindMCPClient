@@ -18,7 +18,14 @@ RUN pip install --no-cache-dir uv
 
 WORKDIR /workspace/agent
 COPY pyproject.toml uv.lock README.md ./
-COPY app agent mcp_client mcp_server schemas services config docs ./
+COPY app/ ./app/
+COPY agent/ ./agent/
+COPY mcp_client/ ./mcp_client/
+COPY mcp_server/ ./mcp_server/
+COPY schemas/ ./schemas/
+COPY services/ ./services/
+COPY config/ ./config/
+COPY docs/ ./docs/
 RUN uv sync --locked --no-dev
 
 WORKDIR /workspace/gateway
