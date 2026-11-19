@@ -8,6 +8,14 @@ description: >
 
 # Wayfind — Master Architecture Reference
 
+## Temporary Render deployment
+
+`render.yaml` deploys the public Next.js web app plus private gateway, agent,
+and MCP Docker services across the three GitHub repositories. Render injects
+private `hostport` values; startup commands assemble internal HTTP URLs. Neon
+is the durable PostgreSQL store and Layerbase is the shared Redis service.
+Only the web app has a public Render URL; it proxies `/api/*` to the gateway.
+
 ## Implemented runtime knowledge wiring — 17 November 2026
 
 User reference: `docs/reference/found_child_user_guidance.txt` (unchanged).

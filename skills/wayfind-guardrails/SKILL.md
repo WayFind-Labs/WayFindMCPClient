@@ -7,6 +7,13 @@ description: >
 
 # Wayfind — Safety, Privacy & Operational Guardrails
 
+## Render prototype boundary
+
+The Blueprint in `render.yaml` exposes only the Next.js web service. Gateway,
+agent, and MCP stay on Render's private network. Keep Neon, Layerbase, and
+Groq credentials in Render secret environment variables. This package is for
+the English-only Karachi prototype, without guaranteed emergency monitoring.
+
 ## Current MVP runtime policy — 17 November 2026
 
 `mcp_client/knowledge/found_child_guidance.md` is the runtime conversation policy,

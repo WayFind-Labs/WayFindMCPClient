@@ -1,0 +1,105 @@
+# Render Blueprint for the temporary, English-only Karachi found-child prototype.
+# The frontend is the only internet-facing service. Neon and Layerbase are
+# external managed services; supply their connection strings as Render secrets.
+services:
+  - type: web
+    name: wayfind-prototype-web
+    runtime: docker
+    repo: https://github.com/WayFind-Labs/Wayfind-FrontEnd.git
+    branch: feat/found-child-pitch-flow
+    region: ohio
+    plan: 0.5c-512mb
+    healthCheckPath: /
+    envVars:
+      - key: NEXT_PUBLIC_USE_SAME_ORIGIN_API
+        value: "true"
+      - key: BACKEND_INTERNAL_HOSTPORT
+        fromService:
+          type: pserv
+          name: wayfind-prototype-gateway
+          property: hostport
+
+  - type: pserv
+    name: wayfind-prototype-gateway
+    runtime: docker
+    repo: https://github.com/WayFind-Labs/WayFindUiBackend.git
+    branch: main
+    region: ohio
+    plan: 0.5c-512mb
+    envVars:
+      - key: AGENT_HOSTPORT
+        fromService:
+          type: pserv
+          name: wayfind-prototype-agent
+          property: hostport
+      - key: DATABASE_URL
+        sync: false
+      - key: REDIS_URL
+        sync: false
+      - key: SECRET_KEY
+        generateValue: true
+      - key: SHELTER_BACKEND_API_KEY
+        generateValue: true
+      - key: ADMIN_API_KEY
+        generateValue: true
+      - key: CORS_ORIGINS
+        value: "[]"
+      - key: ENABLE_DEFERRED_FEATURES
+        value: "false"
+
+  - type: pserv
+    name: wayfind-prototype-agent
+    runtime: docker
+    region: ohio
+    plan: 0.5c-512mb
+    envVars:
+      - key: GATEWAY_HOSTPORT
+        fromService:
+          type: pserv
+          name: wayfind-prototype-gateway
+          property: hostport
+      - key: MCP_HOSTPORT
+        fromService:
+          type: pserv
+          name: wayfind-prototype-mcp
+          property: hostport
+      - key: SHELTER_BACKEND_API_KEY
+        fromService:
+          type: pserv
+          name: wayfind-prototype-gateway
+          envVarKey: SHELTER_BACKEND_API_KEY
+      - key: REDIS_URL
+        fromService:
+          type: pserv
+          name: wayfind-prototype-gateway
+          envVarKey: REDIS_URL
+      - key: GROQ_API_KEY
+        sync: false
+      - key: LLM_PROVIDER
+        value: groq
+      - key: SESSION_BACKEND
+        value: redis
+      - key: MCP_TRANSPORT
+        value: sse
+      - key: ENABLE_DEFERRED_FEATURES
+        value: "false"
+
+  - type: pserv
+    name: wayfind-prototype-mcp
+    runtime: docker
+    dockerCommand: sh scripts/render-start.sh mcp
+    region: ohio
+    plan: 0.5c-512mb
+    envVars:
+      - key: GATEWAY_HOSTPORT
+        fromService:
+          type: pserv
+          name: wayfind-prototype-gateway
+          property: hostport
+      - key: SHELTER_BACKEND_API_KEY
+        fromService:
+          type: pserv
+          name: wayfind-prototype-gateway
+          envVarKey: SHELTER_BACKEND_API_KEY
+      - key: ENABLE_DEFERRED_FEATURES
+        value: "false"

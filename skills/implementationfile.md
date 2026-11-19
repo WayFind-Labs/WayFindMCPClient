@@ -1,5 +1,13 @@
 # Wayfind — Master Implementation Plan
 
+## Temporary Render package
+
+The repository owns `render.yaml` and a shared agent/MCP Docker image. The
+Blueprint references the frontend and gateway repositories, wires internal
+hostports, and accepts Neon, Layerbase, and Groq secrets during Render setup.
+The gateway migrates the found-report schema at startup. Browser API requests
+use the frontend's same-origin Next.js proxy.
+
 **Date:** 2026-11-13  
 **Status:** MVP Pivot — Laser-focused on **"I Found a Child: Safe Guidance & Ethical Intake"**  
 **LLM Engine:** Groq (`openai/gpt-oss-120b` default; configurable) via `langchain-groq`

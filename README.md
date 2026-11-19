@@ -1,5 +1,28 @@
 # WayFindMCPClient
 
+## Temporary Render deployment
+
+[`render.yaml`](render.yaml) creates four Docker services from the three Wayfind
+repositories. The Next.js web service is public. The gateway, agent, and MCP
+server are private services on Render's network. The web app forwards `/api/*`
+to the gateway, so the browser uses one origin. The gateway applies the
+idempotent found-report migration at startup. Neon PostgreSQL and Layerbase
+Redis remain external managed services.
+
+Create a Render Blueprint from this repository's `feat/groq-llm-provider`
+branch. Connect all three GitHub repositories to the same Render workspace.
+Render prompts for `DATABASE_URL` (Neon), `REDIS_URL` (Layerbase `rediss://`),
+and `GROQ_API_KEY`. Enter these as Render secrets, never in Git. The Blueprint
+generates the gateway JWT secret, private admin API key, and shared gateway/
+agent key. Render private services use paid compute; review the four service
+charges before creating the Blueprint. The frontend branch is
+`feat/found-child-pitch-flow`; the gateway branch is `main`.
+
+After all services are live, open the web service URL and run a synthetic
+found-child conversation. If intake returns 503, inspect gateway, agent, and
+MCP logs and the external Neon/Layerbase/Groq connections. This is the
+English-only Karachi prototype, without guaranteed emergency monitoring.
+
 > Agent backend for the **Wayfind** platform — a prompt-first PWA for missing children, found children, and shelter access.
 
 ## Runtime conversation knowledge (17 November 2026)
