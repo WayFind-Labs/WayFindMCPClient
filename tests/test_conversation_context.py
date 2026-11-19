@@ -69,16 +69,38 @@ async def test_followup_actually_sends_knowledge_and_dialogue_to_model():
 
 
 @pytest.mark.asyncio
-async def test_mismatched_followup_is_rejected_and_provider_error_is_visible():
+async def test_mismatched_followup_uses_the_requested_field_even_with_provider_configured():
     llm = WayfindLLM(api_key="")
-    llm._llm = SimpleNamespace(with_structured_output=lambda _model: SimpleNamespace(
+    llm._llm = SimpleNamespace(with_structured_output=lambda _model, **_kwargs: SimpleNamespace(
         ainvoke=AsyncMock(return_value=_FollowupLLM(target_field="authorities_contacted", question="Did you call police?"))
     ))
     fallback = await llm.generate_followup_question(["identifying_features"], optional=True)
     assert "distinguishing" in fallback.lower()
     llm.api_key = "configured-test-key"
+    assert await llm.generate_followup_question(["identifying_features"], optional=True) == fallback
+
+
+@pytest.mark.asyncio
+async def test_followup_provider_failure_remains_visible():
+    llm = WayfindLLM(api_key="configured-test-key")
+    llm._llm = SimpleNamespace(with_structured_output=lambda _model, **_kwargs: SimpleNamespace(
+        ainvoke=AsyncMock(side_effect=ConnectionError("provider unavailable"))
+    ))
     with pytest.raises(RuntimeError, match="Follow-up model unavailable"):
-        await llm.generate_followup_question(["identifying_features"], optional=True)
+        await llm.generate_followup_question(["clothing"], optional=True)
+
+
+@pytest.mark.asyncio
+async def test_followup_can_acknowledge_a_numeric_age():
+    llm = WayfindLLM(api_key="configured-test-key")
+    llm._llm = SimpleNamespace(with_structured_output=lambda _model, **_kwargs: SimpleNamespace(
+        ainvoke=AsyncMock(return_value=_FollowupLLM(
+            target_field="clothing", acknowledgment="Thanks. The child is about 9.",
+            question="What is the child wearing?",
+        ))
+    ))
+    answer = await llm.generate_followup_question(["clothing"], [{"role": "user", "content": "9"}], optional=True)
+    assert answer == "Thanks. The child is about 9.\n\nWhat is the child wearing?"
 
 
 @pytest.mark.asyncio

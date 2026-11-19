@@ -760,21 +760,25 @@ class WayfindLLM:
                     and len(acknowledgment) <= 70
                     and "?" not in acknowledgment
                     and "\n" not in acknowledgment
-                    and not any(char.isdigit() for char in reply)
                     and not any(mark in reply for mark in ("*", "#"))
                 ):
                     return reply
                 raise ValueError("Follow-up did not match the requested field contract")
+            except ValueError:
+                logger.warning("Follow-up model output missed the short response contract")
+                return f"Could you tell me {label}?" + (" It's okay if you don't know." if optional else "")
             except Exception as exc:
-                logger.warning("LLM generate_followup_question failed: %s", exc)
+                logger.warning("Follow-up model call unavailable")
                 if self.api_key:
                     raise RuntimeError("Follow-up model unavailable") from exc
 
         # Fallback template
         labels = [field_labels.get(f, f.replace("_", " ")) for f in missing_fields[:2]]
         if len(labels) == 1:
-            return f"Could you please tell me {labels[0]}?"
-        return f"Could you please tell me {labels[0]} and {labels[1]}?"
+            question = f"Could you please tell me {labels[0]}?"
+        else:
+            question = f"Could you please tell me {labels[0]} and {labels[1]}?"
+        return question + (" It's okay if you don't know." if optional else "")
 
     async def generate_guidance_response(self, state: WayfindState) -> str:
         """Use packaged knowledge and recent dialogue without performing tool actions.

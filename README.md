@@ -282,6 +282,9 @@ short, action-first English responses; structured Groq follow-ups and guidance
 are checked for length, formatting and unverified emergency number examples.
 The follow-up model may add one brief, grounded acknowledgment before its
 single question to keep the exchange calm without adding a second request.
+If a Groq follow-up breaks that short response format, the agent asks a brief
+question for the current field. A provider failure remains visible as an error.
+Grounded numbers, such as a child's stated age, are allowed in acknowledgments.
 The authenticated snapshot restores an unfinished found-child intake as a
 chat question, not a form card; review and committed receipt snapshots retain
 their existing event types.

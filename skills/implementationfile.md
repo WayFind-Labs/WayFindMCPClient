@@ -206,6 +206,9 @@ structured output with length and format checks. Invalid guidance returns
 reviewed static safety copy. The private review shows contact; the receipt
 does not. Found-child questions are chat turns, not inline form cards.
 The follow-up output optionally includes a brief grounded acknowledgment.
+Grounded numeric facts are valid in that acknowledgment. A malformed follow-up
+uses a short question for the active field; an actual model call failure still
+returns an honest recoverable error.
 The snapshot route restores unfinished found intake as a chat question, while
 review and receipt snapshots keep their explicit events.
 Recovery uses the current missing field for a specific question when prior

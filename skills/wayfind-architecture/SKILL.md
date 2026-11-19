@@ -171,6 +171,9 @@ confirmed draft reaches it directly. Found intake emits chat questions without
 keep user-facing replies short and action-first; invalid guidance falls back
 to static safety help.
 The follow-up schema has an optional short acknowledgment ahead of one question.
+Formatting mismatch uses a field-specific question; genuine provider failure
+continues through the recoverable error path. Acknowledgments may repeat
+finder-supplied numeric facts such as age.
 The agent snapshot route maps an unfinished found intake to `assistant_message`
 and preserves review/receipt events for completed stages.
 The recovery question is derived from `missing_information` so Redis snapshots

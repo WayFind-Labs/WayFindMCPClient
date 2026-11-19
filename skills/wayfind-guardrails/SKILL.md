@@ -131,6 +131,10 @@ unverified emergency number. Groq follow-ups and guidance use structured
 output contracts; invalid output fails to reviewed static safety text.
 A follow-up may briefly acknowledge the finder, but cannot assert unobserved
 safety or authority action.
+Allow grounded numbers such as a stated age in acknowledgments. If the model
+misses the short follow-up format, ask about the current field in one brief
+question; disclose a real provider failure instead of presenting it as a
+successful model answer.
 Session snapshot recovery must return a chat question for unfinished found
 intake; it must not reintroduce a mandatory form card.
 Derive a field-specific recovery question from the current missing field if

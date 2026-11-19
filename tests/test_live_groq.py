@@ -53,6 +53,13 @@ async def test_live_groq_found_child_intake():
     )
     assert question.count("?") == 1
     assert len(question) <= 180
+    age_followup = await llm.generate_followup_question(
+        ["clothing"],
+        context=[{"role": "user", "content": "9"}],
+        optional=True,
+    )
+    assert age_followup.count("?") == 1
+    assert "wear" in age_followup.lower() or "clothing" in age_followup.lower()
     state = initial_state("synthetic-groq-guidance")
     state["user_prompt"] = "Can I post the child's photo and location on social media?"
     guidance = await llm.generate_guidance_response(state)
