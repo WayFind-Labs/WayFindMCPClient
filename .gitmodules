@@ -1,0 +1,8 @@
+[submodule "bundle/frontend"]
+	path = bundle/frontend
+	url = https://github.com/WayFind-Labs/Wayfind-FrontEnd.git
+	branch = feat/found-child-pitch-flow
+[submodule "bundle/gateway"]
+	path = bundle/gateway
+	url = https://github.com/WayFind-Labs/WayFindUiBackend.git
+	branch = main

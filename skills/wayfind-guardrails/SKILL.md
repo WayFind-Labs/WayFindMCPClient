@@ -7,6 +7,14 @@ description: >
 
 # Wayfind — Safety, Privacy & Operational Guardrails
 
+## Single-container demo boundary
+
+`Dockerfile.single` exposes only the Next.js port; MCP, agent, and gateway bind
+to loopback inside the same container. `render-single.yaml` accepts Neon,
+Layerbase, and Groq credentials only through Render secret fields. The
+single-container plan can sleep or run out of memory on Render Free, so it is
+for synthetic demonstration rather than a monitored child-safety service.
+
 ## Render prototype boundary
 
 The Blueprint in `render.yaml` exposes only the Next.js web service. Gateway,

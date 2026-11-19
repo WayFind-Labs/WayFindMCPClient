@@ -1,5 +1,43 @@
 # WayFindMCPClient
 
+## Single-container prototype (one Render Free web service)
+
+[`render-single.yaml`](render-single.yaml) deploys
+[`Dockerfile.single`](Dockerfile.single) as one web service. It builds the pinned
+frontend and gateway Git submodules with the agent and runs the Next.js web
+server, gateway, agent, and MCP server in one container. The three Python
+services bind only to `127.0.0.1`; Next.js alone listens on Render's public
+`PORT`. The gateway runs the found-report migration against Neon before any
+service starts. Layerbase Redis and Groq remain external.
+
+In Render, create a **new Blueprint** from the `feat/single-container-render`
+branch and set **Blueprint Path** to `render-single.yaml`. This is separate from
+the four-service `render.yaml`; deploy only one of them. Render must have GitHub
+access to all three repositories so it can clone the pinned submodules. Enter
+`DATABASE_URL`, `REDIS_URL`, and `GROQ_API_KEY` in Render's secret prompts. The
+Blueprint generates the other three secrets. Open the
+`wayfind-prototype-single` web URL after it reaches Live, then run a synthetic
+found-child report and confirm the receipt.
+
+The submodules are pinned to specific commits. When frontend or gateway code
+changes, update their pointers in this repository and push another commit
+before rebuilding this single image.
+
+For a local Docker run, copy [`.env.single.example`](.env.single.example) to
+the ignored `.env.single` and fill its values. Then run:
+
+```sh
+git submodule update --init --recursive
+docker build -f Dockerfile.single -t wayfind-single .
+docker run --rm -p 10000:10000 --env-file .env.single wayfind-single
+```
+
+Open `http://localhost:10000` and check `/api/ready` before a synthetic test.
+Render Free has 512 MB RAM, a shared monthly free-hour allowance, and sleeps
+after 15 minutes idle; four processes might exceed that memory limit. This
+package is for a temporary demo, not a continuously available child-safety
+service. No credentials are stored in the image or Git history.
+
 ## Temporary Render deployment
 
 [`render.yaml`](render.yaml) creates four Docker services from the three Wayfind
@@ -9,8 +47,8 @@ to the gateway, so the browser uses one origin. The gateway applies the
 idempotent found-report migration at startup. Neon PostgreSQL and Layerbase
 Redis remain external managed services.
 
-Create a Render Blueprint from this repository's `feat/groq-llm-provider`
-branch. Connect all three GitHub repositories to the same Render workspace.
+Create a Render Blueprint from the branch containing `render.yaml`.
+Connect all three GitHub repositories to the same Render workspace.
 Render prompts for `DATABASE_URL` (Neon), `REDIS_URL` (Layerbase `rediss://`),
 and `GROQ_API_KEY`. Enter these as Render secrets, never in Git. The Blueprint
 generates the gateway JWT secret, private admin API key, and shared gateway/

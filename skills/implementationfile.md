@@ -1,5 +1,14 @@
 # Wayfind — Master Implementation Plan
 
+## One-service Render demo option
+
+`Dockerfile.single` builds the frontend and gateway pinned Git submodules with
+the agent/MCP source into one image. `scripts/single_container.py` migrates
+Neon, starts four supervised processes, and exposes only the Next.js port.
+`render-single.yaml` deploys it on a Render Free web plan while external Neon,
+Layerbase, and Groq remain configured as secrets. This is separate from the
+existing four-service paid Blueprint.
+
 ## Temporary Render package
 
 The repository owns `render.yaml` and a shared agent/MCP Docker image. The

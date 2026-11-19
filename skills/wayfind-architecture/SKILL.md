@@ -8,6 +8,15 @@ description: >
 
 # Wayfind — Master Architecture Reference
 
+## Single-container prototype package
+
+`render-single.yaml` selects `Dockerfile.single` for one free Render web
+service. Pinned Git submodules bring in the frontend and gateway at known
+commits. A supervisor starts MCP, agent, gateway, and Next.js in that order;
+only Next.js binds to the public port. The other services use loopback URLs.
+External Neon and Layerbase continue to hold report and session data. This
+temporary arrangement keeps the existing four-service Blueprint separate.
+
 ## Temporary Render deployment
 
 `render.yaml` deploys the public Next.js web app plus private gateway, agent,

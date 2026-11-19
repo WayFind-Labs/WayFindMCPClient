@@ -1,0 +1,32 @@
+# Temporary single-container prototype. Do not deploy alongside render.yaml.
+services:
+  - type: web
+    name: wayfind-prototype-single
+    runtime: docker
+    dockerfilePath: ./Dockerfile.single
+    plan: free
+    region: ohio
+    healthCheckPath: /
+    envVars:
+      - key: DATABASE_URL
+        sync: false
+      - key: REDIS_URL
+        sync: false
+      - key: GROQ_API_KEY
+        sync: false
+      - key: SECRET_KEY
+        generateValue: true
+      - key: SHELTER_BACKEND_API_KEY
+        generateValue: true
+      - key: ADMIN_API_KEY
+        generateValue: true
+      - key: LLM_PROVIDER
+        value: groq
+      - key: SESSION_BACKEND
+        value: redis
+      - key: MCP_TRANSPORT
+        value: sse
+      - key: CORS_ORIGINS
+        value: "[]"
+      - key: ENABLE_DEFERRED_FEATURES
+        value: "false"

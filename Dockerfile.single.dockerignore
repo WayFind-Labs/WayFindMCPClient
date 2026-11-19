@@ -1,0 +1,16 @@
+.git
+**/.git
+.venv
+**/.venv
+__pycache__
+**/__pycache__
+.pytest_cache
+**/.pytest_cache
+.env
+.env.*
+**/.env
+**/.env.*
+**/node_modules
+**/.next
+*.pyc
+**/*.pyc
