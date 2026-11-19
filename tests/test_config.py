@@ -107,4 +107,8 @@ async def test_get_guidance_tool_uses_static_yaml():
     res = await get_guidance(query="what to do", topic="found_child")
     assert res.topic == "found_child"
     assert "police" in res.guidance.lower()
+    assert "15" in res.guidance
+    assert "1122" in res.guidance
+    assert "1098" not in res.guidance
+    assert "does not contact authorities" in res.guidance
     assert len(res.next_steps) > 0

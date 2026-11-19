@@ -104,6 +104,8 @@ async def get_session_snapshot(session_id: str, request: Request) -> list[AgentE
             return [AgentEvent(
                 type="assistant_message",
                 content=f"Your draft is still open.\n\n{question}",
+                draft_id=state.get("found_draft_id"),
+                optional_field=missing[0] if missing[0] in _FOUND_OPTIONAL_FIELDS else None,
             )]
         if report.found_location and report.found_location != "unknown" and state.get("found_draft_id"):
             return [AgentEvent(
@@ -111,9 +113,9 @@ async def get_session_snapshot(session_id: str, request: Request) -> list[AgentE
                 content=found_report_review_text(report),
                 draft_id=state["found_draft_id"],
             )]
-        return [AgentEvent(type="assistant_message", content="Your report draft is still open. Where did you find the child?")]
+        return [AgentEvent(type="assistant_message", content="Your report draft is still open. Where did you find the child?", draft_id=state.get("found_draft_id"))]
     if state.get("found_draft_id"):
-        return [AgentEvent(type="assistant_message", content="Your new report draft is ready. Tell me where you found the child.")]
+        return [AgentEvent(type="assistant_message", content="Your new report draft is ready. Tell me where you found the child.", draft_id=state["found_draft_id"])]
     return []
 
 @router.post(
@@ -167,12 +169,12 @@ async def handle_event(
         state["found_optional_questions_asked"] = []
         state["submission_confirmed"] = False
         state["last_form_data"] = None
-        state["intent"] = None
-        state["conversation_history"] = []
+        state["intent"] = Intent.FOUND_CHILD
+        state["conversation_history"] = [{"role": "assistant", "content": "The draft was canceled. You can tell me where you found a child when you are ready."}]
         state["missing_information"] = []
         state["followup_question"] = None
         state["agent_events"] = []
-        state["found_safety_delivered"] = False
+        state["found_safety_delivered"] = True
         await store.set(session_id, _serialise_state(state))
         return JSONResponse(content=[{"type": "assistant_message", "content": "The draft was canceled. No report was recorded. You can start again whenever you're ready."}])
     if form.get("new_found_report") is True:
@@ -183,14 +185,14 @@ async def handle_event(
         state["case_reference"] = None
         state["submission_confirmed"] = False
         state["last_form_data"] = None
-        state["intent"] = None
-        state["conversation_history"] = []
+        state["intent"] = Intent.FOUND_CHILD
+        state["conversation_history"] = [{"role": "assistant", "content": "Tell me where you found the child."}]
         state["missing_information"] = []
         state["followup_question"] = None
         state["agent_events"] = []
-        state["found_safety_delivered"] = False
+        state["found_safety_delivered"] = True
         await store.set(session_id, _serialise_state(state))
-        return JSONResponse(content=[{"type": "assistant_message", "content": "A new report draft is ready. Tell me where you found the child."}])
+        return JSONResponse(content=[{"type": "assistant_message", "content": "A new report draft is ready. Tell me where you found the child.", "draft_id": state["found_draft_id"]}])
     if form.get("confirm_found_report") is True and (
         not state.get("found_draft_id") or form.get("draft_id") != state.get("found_draft_id")
     ):

@@ -57,8 +57,19 @@ async def understand_intent(state: WayfindState) -> dict:
                 conversation_history=state["conversation_history"],
                 prompt=state["user_prompt"],
             )
+            # A found-child draft is an active task. A short answer to its next
+            # question must not switch to an unrelated, deferred journey when
+            # the classifier loses the context. Guidance may still interrupt.
+            active_found_intake = (
+                (state.get("found_safety_delivered") or state.get("found_draft_id"))
+                and not state.get("submission_confirmed")
+                and not state.get("case_reference")
+            )
+            resolved_intent = result.intent
+            if active_found_intake and result.intent != Intent.GUIDANCE:
+                resolved_intent = Intent.FOUND_CHILD
             updates: dict = {
-                "intent": existing_intent if result.intent == Intent.UNKNOWN and existing_intent else result.intent,
+                "intent": existing_intent if resolved_intent == Intent.UNKNOWN and existing_intent else resolved_intent,
                 "intent_confidence": result.confidence,
             }
             if result.intent == Intent.CASE_STATUS and result.case_reference:

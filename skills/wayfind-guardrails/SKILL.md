@@ -117,7 +117,10 @@ Layerbase managed Redis over TLS is the shared local MVP state provider;
 agent and gateway key namespaces are distinct.
 The found-report node requires an explicit confirmation event before a write.
 Configured model failures must not fall back to keyword extraction.
-Do not assume Pakistan from a found-child report; location is a case fact.
+The prototype is scoped to Karachi, Sindh. Give Karachi call options before
+intake and direct a finder outside Karachi to their own local emergency help.
+If RAG returns fallback content, use the reviewed Karachi static guidance YAML
+for found-child tool guidance instead of generic missing-child or 1098 advice.
 Carry the backend receipt timestamp into `submission_complete`.
 Use the `FoundChildIntakeV1` schema version in the report and receipt event.
 Show known report details in the confirmation summary before any write.
@@ -125,7 +128,7 @@ Structured corrections replace prior report facts and are validated.
 Found-child reports require the finder's full name and a reachable phone
 number before confirmation or submission. Extract contact only when the finder
 supplies their own details; keep it out of the receipt and public responses.
-Ask one short chat question per intake turn. The `found-child-intake-v4`
+Ask one short chat question per intake turn. The `found-child-intake-v5`
 runtime policy gives action-first, plain-English guidance with no long list or
 unverified emergency number. Groq follow-ups and guidance use structured
 output contracts; invalid output fails to reviewed static safety text.
@@ -135,7 +138,19 @@ Allow grounded numbers such as a stated age in acknowledgments. If the model
 misses the short follow-up format, ask about the current field in one brief
 question; disclose a real provider failure instead of presenting it as a
 successful model answer.
+While a found-child draft is open, a model misclassification cannot route an
+answer about the child into a deferred missing-child journey. Safety questions
+may interrupt intake. The runtime role is to help the finder stay safe, call
+for help promptly, and review and record a report without implying dispatch.
 Session snapshot recovery must return a chat question for unfinished found
 intake; it must not reintroduce a mandatory form card.
+Optional intake questions and restored snapshots expose the current optional
+field and draft ID so the frontend can offer Skip and Clear draft. Skip records
+an explicit unknown status; Clear draft cannot delete a recorded report.
+Reset actions retain the found-child scenario so a location-only answer after
+starting over cannot fall into a generic unknown-intent question.
+Recognize an existing draft ID from older sessions as found-child intake too.
+Ask for finder contact in terms of a possible handover to a verified parent or
+guardian, without implying automatic matching or direct access to the phone.
 Derive a field-specific recovery question from the current missing field if
 the prior assistant wording is unavailable.

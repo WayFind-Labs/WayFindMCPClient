@@ -1,5 +1,6 @@
 """Opt-in synthetic rehearsal against the configured Groq model."""
 
+import os
 import pytest
 
 from app.config import get_settings
@@ -9,6 +10,8 @@ from mcp_client.llm import WayfindLLM
 
 @pytest.mark.asyncio
 async def test_live_groq_found_child_intake():
+    if os.environ.get("RUN_LIVE_GROQ") != "1":
+        pytest.skip("Set RUN_LIVE_GROQ=1 to spend live Groq quota")
     settings = get_settings()
     if settings.llm_provider != "groq" or not settings.groq_api_key:
         pytest.skip("Groq credentials are not configured")
@@ -60,6 +63,16 @@ async def test_live_groq_found_child_intake():
     )
     assert age_followup.count("?") == 1
     assert "wear" in age_followup.lower() or "clothing" in age_followup.lower()
+    clothing_intent = await llm.extract_intent(
+        conversation_history=[
+            {"role": "user", "content": "I found a child at Synthetic QA Campus."},
+            {"role": "assistant", "content": "Approximately how old is the child?"},
+            {"role": "user", "content": "9"},
+            {"role": "assistant", "content": "What clothing is the child wearing?"},
+        ],
+        prompt="Black shirt and blue jeans, white sneakers and a gold watch",
+    )
+    assert clothing_intent.intent == Intent.FOUND_CHILD
     state = initial_state("synthetic-groq-guidance")
     state["user_prompt"] = "Can I post the child's photo and location on social media?"
     guidance = await llm.generate_guidance_response(state)

@@ -167,7 +167,7 @@ The same extractor accepts a finder-supplied full name and phone from natural
 chat or form data. Completeness asks optional child observations once, then
 requires finder name and phone. The submit node enforces that gate even if a
 confirmed draft reaches it directly. Found intake emits chat questions without
-`request_information` cards. Runtime policy v4 and structured Groq guidance
+`request_information` cards. Runtime policy v5 and structured Groq guidance
 keep user-facing replies short and action-first; invalid guidance falls back
 to static safety help.
 The follow-up schema has an optional short acknowledgment ahead of one question.
@@ -176,11 +176,26 @@ continues through the recoverable error path. Acknowledgments may repeat
 finder-supplied numeric facts such as age.
 The agent snapshot route maps an unfinished found intake to `assistant_message`
 and preserves review/receipt events for completed stages.
+Found-child follow-up events and snapshots include `optional_field` for Skip
+and `draft_id` for clearing an open draft. Clear resets only the draft; the
+existing new-report action replaces the visible receipt while retaining the
+durable saved report. Finder contact wording refers to a possible verified
+parent or guardian handover without exposing the private phone.
+Clear and new-report resets preserve found-child intent and a small assistant
+context turn; the next location-only reply advances the same intake workflow.
+The intent guard also accepts a pre-fix open draft ID to recover existing
+sessions from the generic unknown-intent response.
 The recovery question is derived from `missing_information` so Redis snapshots
 do not depend on conversational history being present.
 Fresh text turns are reclassified so guidance questions can interrupt intake;
 form answers retain the active draft intent. Groq structured extraction uses
 JSON Schema mode rather than function calling.
+An open found-child draft retains found-child intent when a classifier mistakes
+a short detail answer for a deferred journey; guidance can still interrupt.
+The Karachi-scoped role prompt directs the finder to call before finishing the
+Wayfind report. The UI owns verified dial links; the agent never initiates calls.
+The MCP get_guidance tool falls through to reviewed static YAML when RAG has
+only a fallback answer, preserving Karachi numbers and truthful report claims.
 The first found-child turn emits reviewed immediate-danger guidance before a
 missing-location question; `found_safety_delivered` persists across turns so
 the initial safety message is not repeated.

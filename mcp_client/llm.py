@@ -267,6 +267,9 @@ class WayfindLLM:
                     "- UNKNOWN: Irrelevant, ambiguous, or general greeting.\n\n"
                     "If the user mentions a case reference number (like WF-20260925-0042), extract it into case_reference.\n"
                     "Classify the LATEST user message. Prior turns provide context but do not lock intent. "
+                    "When the assistant asked a found-child intake question, a brief answer about "
+                    "age, clothing, condition, location, or finder contact remains FOUND_CHILD. "
+                    "Clothing descriptions are observations, not a missing-child search request. "
                     "A question about posting a photo is GUIDANCE, not a report submission. "
                     "Provide a confidence score between 0.0 and 1.0."
                 )
@@ -727,8 +730,8 @@ class WayfindLLM:
             "clothing": "what clothing the child was wearing",
             "hair_color": "the child's hair colour",
             "current_circumstances": "whether the child appears hurt or needs immediate help",
-            "reporter_name": "your full name, so the admin can contact you about this report",
-            "reporter_contact": "a phone number where the admin can reach you about this report",
+            "reporter_name": "your full name for this report",
+            "reporter_contact": "a phone number where we could reach you about a possible handover to the child's verified parent or guardian",
         }
 
         if self._llm is not None:
@@ -742,6 +745,8 @@ class WayfindLLM:
                     "new fact, or second question. Do not mention a different field. "
                     "The acknowledgment must be under 70 characters and must not assume "
                     "the child is safe, unhurt, or that anyone was contacted. "
+                    "For finder contact, mention a possible handover to a verified parent or guardian; "
+                    "do not use the word admin in the user-facing question. "
                     f"Set target_field exactly to {target_field!r}. Ask only about {label}. "
                     "Keep question under 180 characters, with no Markdown. "
                     + ("This field is optional; say it can be skipped if unknown. " if optional else "")

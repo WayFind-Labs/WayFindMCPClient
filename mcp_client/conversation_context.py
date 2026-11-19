@@ -51,14 +51,15 @@ UNAVAILABLE_GUIDANCE = (
     "The conversational assistant is unavailable right now. "
     "If you have found a child, stay nearby in a safe, visible public place. "
     "Do not take them home or into a private vehicle, share their photo or location "
-    "publicly, or hand them to an unverified person. Contact local police or "
-    "child-protection services directly; seek emergency medical help if needed. "
+    "publicly, or hand them to an unverified person. In Karachi, call police "
+    "15 or Rescue 1122 for an emergency. Outside Karachi, contact local help. "
     "This guidance does not mean a report has been saved or anyone notified."
 )
 
 INITIAL_FOUND_SAFETY = (
     "If the child is in immediate danger or seriously hurt, move to safety "
-    "and call local emergency services now.\n\n"
+    "and call 15 for police or 1122 for emergency rescue in Karachi now.\n\n"
     "Stay with the child in a visible public place. Do not take them home "
-    "or share their photo or location online. Wayfind does not contact authorities."
+    "or share their photo or location online. Call before completing this report. "
+    "Wayfind does not contact authorities. Outside Karachi, call local emergency services."
 )

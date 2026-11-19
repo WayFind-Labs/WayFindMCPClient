@@ -109,6 +109,8 @@ async def test_cancel_and_stale_confirmation_never_run_submission_graph():
     saved = await store.get("draft-session")
     assert saved["found_child_report"] is None
     assert saved["found_draft_id"] is None
+    assert saved["intent"] == "found_child"
+    assert saved["found_safety_delivered"] is True
     app.state.graph_runner.assert_not_awaited()
 
 
@@ -134,6 +136,10 @@ async def test_explicit_new_report_replaces_prior_draft_and_reference():
     assert saved["found_draft_id"] != "old-draft"
     assert saved["found_child_report"] is None
     assert saved["case_reference"] is None
+    assert saved["intent"] == "found_child"
+    assert saved["found_safety_delivered"] is True
+    assert saved["conversation_history"][-1]["content"] == "Tell me where you found the child."
+    assert response.json()[0]["draft_id"] == saved["found_draft_id"]
     app.state.graph_runner.assert_not_awaited()
 
 
@@ -176,6 +182,24 @@ async def test_snapshot_restores_chat_question_without_a_form():
     assert response.status_code == 200
     assert [event["type"] for event in response.json()] == ["assistant_message"]
     assert "where you found the child" in response.json()[0]["content"]
+
+
+@pytest.mark.asyncio
+async def test_snapshot_restores_optional_skip_and_clear_draft_actions():
+    app = create_app()
+    store = MemorySessionStore()
+    app.state.session_store = store
+    state = _initial_state("optional-resume")
+    state["found_draft_id"] = "optional-draft"
+    state["found_child_report"] = {"found_location": "Synthetic market"}
+    state["missing_information"] = ["age"]
+    await store.set("optional-resume", state)
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        response = await client.get("/internal/sessions/optional-resume/snapshot", headers={"X-Internal-Key": INTERNAL_KEY})
+    event = response.json()[0]
+    assert event["type"] == "assistant_message"
+    assert event["optional_field"] == "age"
+    assert event["draft_id"] == "optional-draft"
 
 
 @pytest.mark.asyncio

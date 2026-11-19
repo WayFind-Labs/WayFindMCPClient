@@ -53,8 +53,8 @@ _FIELD_LABELS: dict[str, str] = {
     "clothing":             "what the child was wearing",
     "hair_color":           "the child's hair colour",
     "current_circumstances": "whether the child appears hurt or needs immediate help",
-    "reporter_name": "your full name, so we can contact you about the report",
-    "reporter_contact": "a phone number where we can reach you about the report",
+    "reporter_name": "your full name for this report",
+    "reporter_contact": "a phone number where we could reach you about a possible handover to the child's verified parent or guardian",
 }
 
 _FOUND_OPTIONAL_FIELDS = ("age", "clothing", "current_circumstances", "identifying_features")

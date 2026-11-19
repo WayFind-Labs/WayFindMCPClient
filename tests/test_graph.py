@@ -289,6 +289,27 @@ async def test_found_child_without_location_sees_safety_before_intake():
 
 
 @pytest.mark.asyncio
+async def test_new_found_draft_accepts_location_without_repeating_found_child_intent():
+    mock_llm = MagicMock()
+    mock_llm.extract_intent = AsyncMock(return_value=MagicMock(intent=Intent.UNKNOWN, confidence=0.2))
+    mock_llm.extract_found_child_report = AsyncMock(return_value=FoundChildReport(found_location="Synthetic QA University, Karachi"))
+    mock_llm.generate_followup_question = AsyncMock(return_value="Approximately how old is the child?")
+    set_llm(mock_llm)
+
+    state = initial_state("new-found-location")
+    state["intent"] = Intent.FOUND_CHILD
+    state["found_safety_delivered"] = True
+    state["found_draft_id"] = "synthetic-draft"
+    state["conversation_history"] = [{"role": "assistant", "content": "Tell me where you found the child."}]
+    state["user_prompt"] = "Synthetic QA University, Karachi"
+
+    result = await run_agent(state)
+    assert result["intent"] == Intent.FOUND_CHILD
+    assert result["agent_events"][-1]["content"] == "Approximately how old is the child?"
+    assert result["agent_events"][-1]["optional_field"] == "age"
+
+
+@pytest.mark.asyncio
 async def test_unknown_found_location_gives_assistance_without_submission():
     mock_llm = MagicMock()
     mock_llm.extract_intent = AsyncMock(return_value=MagicMock(intent=Intent.FOUND_CHILD, confidence=0.98))

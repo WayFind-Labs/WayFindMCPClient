@@ -124,7 +124,7 @@ async def submit_found_child(state: WayfindState) -> dict:
         return {
             "agent_events": existing_events + [{
                 "type": "error",
-                "message": "Before recording a report, please share your full name and a phone number where the admin can reach you. You can type them here.",
+                "message": "Before recording a report, please share your full name and a phone number we could use for a possible handover to the child's verified parent or guardian. You can type them here.",
             }],
             "submission_confirmed": False,
         }

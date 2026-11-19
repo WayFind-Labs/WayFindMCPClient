@@ -209,7 +209,25 @@ The follow-up output optionally includes a brief grounded acknowledgment.
 Grounded numeric facts are valid in that acknowledgment. A malformed follow-up
 uses a short question for the active field; an actual model call failure still
 returns an honest recoverable error.
+Runtime guidance v5 names the Karachi found-child reporting role, prioritizes
+calling for help, and keeps report intake calm and progressive. The intent
+classifier has explicit found-child answer context. While a found draft is
+open, a misclassified clothing answer cannot enter deferred missing-child
+search; guidance questions still interrupt normally.
+The MCP guidance tool prefers reviewed Karachi static YAML over an unavailable
+RAG service's generic fallback; found-child guidance names police 15 and
+Rescue 1122 and does not promise an official case reference.
 The snapshot route restores unfinished found intake as a chat question, while
 review and receipt snapshots keep their explicit events.
+Optional follow-ups now carry their field name and draft ID in agent events.
+Skip submits an explicit unknown field status; Clear draft resets an unfinished
+report, while Start another report dismisses a receipt without deleting the
+saved record. Finder-contact questions refer to a possible verified parent or
+guardian handover without promising contact or matching.
+Resetting or starting another draft now preserves found-child scenario context;
+a location-only reply advances to a specific question instead of a generic
+unknown-intent fallback.
+Pre-fix sessions with an open found draft ID are recognized by the intent
+guard, so retrying a location in that session also advances intake.
 Recovery uses the current missing field for a specific question when prior
 assistant wording is absent from the stored state.

@@ -79,7 +79,9 @@ async def get_guidance(
 
         client = get_rag_client()
         if client is not None:
-            return await client.query(query=query, topic=resolved_topic)
+            result = await client.query(query=query, topic=resolved_topic)
+            if not result.is_static_fallback:
+                return result
     except (ImportError, AttributeError, Exception) as exc:
         logger.debug("Downstream rag_client not active, using static guidance: %s", exc)
 

@@ -31,6 +31,7 @@ from __future__ import annotations
 import logging
 
 from agent.state import Intent, WayfindState
+from agent.nodes.check_completeness import _FOUND_OPTIONAL_FIELDS
 from mcp_client.conversation_context import INITIAL_FOUND_SAFETY
 
 logger = logging.getLogger(__name__)
@@ -57,7 +58,12 @@ def ask_followup(state: WayfindState) -> dict:
     new_events = []
     if first_found_turn:
         new_events.append({"type": "assistant_message", "content": INITIAL_FOUND_SAFETY})
-    new_events.append({"type": "assistant_message", "content": question})
+    followup_event = {"type": "assistant_message", "content": question}
+    if state.get("intent") == Intent.FOUND_CHILD:
+        followup_event["draft_id"] = state.get("found_draft_id")
+        if missing and missing[0] in _FOUND_OPTIONAL_FIELDS:
+            followup_event["optional_field"] = missing[0]
+    new_events.append(followup_event)
     if missing and state.get("intent") != Intent.FOUND_CHILD:
         new_events.append({"type": "request_information", "fields": missing})
 

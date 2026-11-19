@@ -120,6 +120,13 @@ async def test_found_optional_details_are_offered_once_and_can_be_skipped():
     first = await check_completeness(state)
     assert first["missing_information"] == ["current_circumstances"]
     assert "skip" in first["followup_question"].lower()
+    from agent.nodes.ask_followup import ask_followup
+    state["missing_information"] = first["missing_information"]
+    state["followup_question"] = first["followup_question"]
+    state["found_draft_id"] = "synthetic-draft"
+    offered = ask_followup(state)["agent_events"][-1]
+    assert offered["optional_field"] == "current_circumstances"
+    assert offered["draft_id"] == "synthetic-draft"
     state["found_optional_questions_asked"] = first["found_optional_questions_asked"]
     state["found_field_statuses"]["current_circumstances"] = "unknown"
     second = await check_completeness(state)

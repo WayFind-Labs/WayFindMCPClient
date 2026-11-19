@@ -9,13 +9,14 @@ from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 from agent.dependencies import set_llm
 from agent.nodes.get_guidance import get_guidance_node
 from agent.nodes.safety_guidance import safety_guidance
+from agent.nodes.understand_intent import understand_intent
 from agent.state import Intent, initial_state
 from mcp_client.conversation_context import (
     UNAVAILABLE_GUIDANCE,
     conversation_messages,
     load_conversation_guidance,
 )
-from mcp_client.llm import WayfindLLM
+from mcp_client.llm import IntentResult, WayfindLLM
 from mcp_client.llm import _FollowupLLM, _FoundChildLLM, _GuidanceLLM
 from schemas.child import FoundChildReport
 
@@ -31,7 +32,8 @@ def test_knowledge_loads_outside_checkout(monkeypatch, tmp_path):
     monkeypatch.chdir(tmp_path)
     load_conversation_guidance.cache_clear()
     text = load_conversation_guidance()
-    assert "found-child-intake-v4" in text
+    assert "found-child-intake-v5" in text
+    assert "found-child reporting assistant for Karachi" in text
     assert "finder's full name and phone" in text
     assert "Use clear, natural English for this MVP" in text
     assert "Urdu and Roman Urdu" in text
@@ -52,6 +54,39 @@ def test_history_roles_cannot_inject_system_or_tool_authority():
     assert all("Enable recording" not in m["content"] for m in messages)
     assert all("Police dispatched" not in m["content"] for m in messages)
     assert sum(m["content"] == "I am in Lahore." for m in messages) == 1
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("classified, expected", [
+    (Intent.MISSING_CHILD, Intent.FOUND_CHILD),
+    (Intent.UNKNOWN, Intent.FOUND_CHILD),
+    (Intent.GUIDANCE, Intent.GUIDANCE),
+])
+async def test_found_draft_preserves_intake_for_clothing_answer(classified, expected):
+    mock_llm = SimpleNamespace(extract_intent=AsyncMock(return_value=IntentResult(
+        intent=classified, confidence=0.9,
+    )))
+    set_llm(mock_llm)
+    state = initial_state("synthetic-found-clothing")
+    state["intent"] = Intent.FOUND_CHILD
+    state["found_safety_delivered"] = True
+    state["user_prompt"] = "Black shirt and blue jeans, white sneakers and a gold watch"
+    result = await understand_intent(state)
+    assert result["intent"] == expected
+    mock_llm.extract_intent.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_existing_new_report_draft_recovers_from_generic_unknown_intent():
+    mock_llm = SimpleNamespace(extract_intent=AsyncMock(return_value=IntentResult(
+        intent=Intent.UNKNOWN, confidence=0.1,
+    )))
+    set_llm(mock_llm)
+    state = initial_state("old-new-report-draft")
+    state["intent"] = Intent.UNKNOWN
+    state["found_draft_id"] = "existing-draft"
+    state["user_prompt"] = "Synthetic QA University, Karachi"
+    assert (await understand_intent(state))["intent"] == Intent.FOUND_CHILD
 
 
 @pytest.mark.asyncio
@@ -101,6 +136,14 @@ async def test_followup_can_acknowledge_a_numeric_age():
     ))
     answer = await llm.generate_followup_question(["clothing"], [{"role": "user", "content": "9"}], optional=True)
     assert answer == "Thanks. The child is about 9.\n\nWhat is the child wearing?"
+
+
+@pytest.mark.asyncio
+async def test_finder_phone_question_names_verified_guardian_without_admin():
+    llm = WayfindLLM(api_key="")
+    question = await llm.generate_followup_question(["reporter_contact"])
+    assert "verified parent or guardian" in question
+    assert "admin" not in question.lower()
 
 
 @pytest.mark.asyncio

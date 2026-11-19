@@ -102,6 +102,7 @@ class AgentEvent(BaseModel):
     submitted_at: str | None = None
     schema_version: str | None = None
     draft_id: str | None = None
+    optional_field: str | None = None
 
     # review_pending: reference for the human-review submission
     case_reference: str | None = None

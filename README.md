@@ -285,9 +285,28 @@ single question to keep the exchange calm without adding a second request.
 If a Groq follow-up breaks that short response format, the agent asks a brief
 question for the current field. A provider failure remains visible as an error.
 Grounded numbers, such as a child's stated age, are allowed in acknowledgments.
+The Karachi prototype uses runtime policy `found-child-intake-v5` in
+`mcp_client/knowledge/found_child_guidance.md`. It tells the agent to help the
+finder stay safe, call police or rescue before finishing intake, and calmly
+review and record a found-child report. The classifier is separately prompted
+with intent definitions and follow-up context; active found drafts keep that
+intent for short detail answers while safety questions can interrupt. The
+frontend provides verified Karachi dial links; Wayfind never places the call.
+When the optional RAG client returns its own static fallback, the MCP guidance
+tool uses the reviewed Karachi YAML instead of older generic fallback copy.
 The authenticated snapshot restores an unfinished found-child intake as a
 chat question, not a form card; review and committed receipt snapshots retain
 their existing event types.
+Optional found-child questions carry `optional_field` and the draft ID in the
+agent event. The UI uses that field to show a Skip button, which sends an
+explicit unknown status. A finder can clear an open draft; a recorded receipt
+can be dismissed to start another report without deleting the saved record.
+Both Clear draft and Start another report leave the session in the found-child
+scenario, so a location-only reply receives the next specific intake question.
+The intent guard also recognizes a draft created before this correction, so
+the finder can retry the location in the same session.
+Finder contact questions mention a possible handover to a verified parent or
+guardian and do not suggest direct contact with an unverified claimant.
 When dialogue history is unavailable, recovery derives the question from the
 current missing field instead of showing a generic placeholder.
 The MVP shared Redis provider is Layerbase managed Redis over TLS (`rediss://`),
