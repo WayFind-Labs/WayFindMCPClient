@@ -95,6 +95,9 @@ class WayfindState(TypedDict):
     turn_count: int
     """Number of turns completed so far (incremented by the route handler before graph runs)."""
 
+    found_safety_delivered: bool
+    """Whether the initial found-child safety action was delivered in this session."""
+
     # ── Intent detection ──────────────────────────────────────────────────────
     intent: Intent | None
     """Detected intent from the understand_intent node. None until first turn completes."""
@@ -116,6 +119,15 @@ class WayfindState(TypedDict):
     """Incrementally built report for FOUND_CHILD intent.
     ``media_reference`` inside this model is set from ``state.media_reference``.
     """
+
+    found_draft_id: str | None
+    """Opaque identifier for one editable found-child draft and its confirmation."""
+
+    found_field_statuses: dict[str, str]
+    """Per-field unasked, known, unknown or declined status for the active found draft."""
+
+    found_optional_questions_asked: list[str]
+    """Optional found-child fields already offered once in this draft."""
 
     # ── Completeness / follow-up ──────────────────────────────────────────────
     missing_information: list[str]
@@ -204,6 +216,7 @@ class WayfindState(TypedDict):
 
     # ── Per-turn form data ────────────────────────────────────────────────────
     last_form_data: dict[str, Any] | None
+    submission_confirmed: bool
     """Raw structured key-value data from a user_form_response event.
     Set by the route handler's _merge_event. Consumed by extract_structured_data.
     Reset to None after extraction.
@@ -242,11 +255,15 @@ def initial_state(session_id: str) -> WayfindState:
         user_prompt            = "",
         conversation_history   = [],
         turn_count             = 0,
+        found_safety_delivered = False,
         intent                 = None,
         intent_confidence      = None,
         child_search_criteria  = None,
         child_registration_data = None,
         found_child_report     = None,
+        found_draft_id         = None,
+        found_field_statuses   = {},
+        found_optional_questions_asked = [],
         missing_information    = [],
         followup_question      = None,
         user_location          = None,
@@ -262,6 +279,7 @@ def initial_state(session_id: str) -> WayfindState:
         final_response         = None,
         agent_events           = [],
         last_form_data         = None,
+        submission_confirmed   = False,
         errors                 = [],
         tool_failures          = [],
     )
@@ -279,6 +297,12 @@ def completeness_router(state: WayfindState) -> str:
         "incomplete" — missing_information is non-empty; route to ask_followup
         "sufficient" — all required fields present; route to route_intent
     """
+    if (
+        state.get("intent") == Intent.FOUND_CHILD
+        and "found_location" in state.get("missing_information", [])
+        and state.get("found_field_statuses", {}).get("found_location") in {"unknown", "declined"}
+    ):
+        return "location_unavailable"
     if state.get("missing_information"):
         return "incomplete"
     return "sufficient"

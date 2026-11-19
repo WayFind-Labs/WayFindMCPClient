@@ -1,0 +1,81 @@
+"""Opt-in synthetic rehearsal against the configured Groq model."""
+
+import os
+import pytest
+
+from app.config import get_settings
+from agent.state import Intent, initial_state
+from mcp_client.llm import WayfindLLM
+
+
+@pytest.mark.asyncio
+async def test_live_groq_found_child_intake():
+    if os.environ.get("RUN_LIVE_GROQ") != "1":
+        pytest.skip("Set RUN_LIVE_GROQ=1 to spend live Groq quota")
+    settings = get_settings()
+    if settings.llm_provider != "groq" or not settings.groq_api_key:
+        pytest.skip("Groq credentials are not configured")
+    llm = WayfindLLM(
+        provider="groq", api_key=settings.groq_api_key, model=settings.llm_model
+    )
+    intent = await llm.extract_intent(
+        conversation_history=[],
+        prompt="I found an unaccompanied child near a synthetic market. I need to record a report.",
+    )
+    assert intent.intent == Intent.FOUND_CHILD
+    interruption = await llm.extract_intent(
+        conversation_history=[
+            {"role": "user", "content": "I found a child near a synthetic market."},
+            {"role": "assistant", "content": "Please tell me where you found the child."},
+        ],
+        prompt="Before that, can I post the child's photo online?",
+    )
+    assert interruption.intent == Intent.GUIDANCE
+    field_statuses: dict[str, str] = {}
+    report = await llm.extract_found_child_report(
+        existing_report=None,
+        prompt="I found a child around 6 to 8 years old near a synthetic market. They wore a red shirt.",
+        field_statuses=field_statuses,
+    )
+    assert report.found_location and "market" in report.found_location.lower()
+    assert report.clothing and "red" in report.clothing[0].lower()
+    assert report.approx_age.min == 6 and report.approx_age.max == 8
+    assert field_statuses["found_location"] == "known"
+    assert field_statuses["clothing"] == "known"
+    assert field_statuses["approx_age"] == "known"
+    with_contact = await llm.extract_found_child_report(
+        existing_report=report,
+        prompt="My full name is Synthetic Finder. You can reach me at +1 202 555 0131.",
+    )
+    assert with_contact.reporter_name == "Synthetic Finder"
+    assert with_contact.reporter_contact == "+1 202 555 0131"
+    question = await llm.generate_followup_question(
+        ["identifying_features"],
+        context=[{"role": "user", "content": "I do not know the child's age or clothing."}],
+        optional=True,
+    )
+    assert question.count("?") == 1
+    assert len(question) <= 180
+    age_followup = await llm.generate_followup_question(
+        ["clothing"],
+        context=[{"role": "user", "content": "9"}],
+        optional=True,
+    )
+    assert age_followup.count("?") == 1
+    assert "wear" in age_followup.lower() or "clothing" in age_followup.lower()
+    clothing_intent = await llm.extract_intent(
+        conversation_history=[
+            {"role": "user", "content": "I found a child at Synthetic QA Campus."},
+            {"role": "assistant", "content": "Approximately how old is the child?"},
+            {"role": "user", "content": "9"},
+            {"role": "assistant", "content": "What clothing is the child wearing?"},
+        ],
+        prompt="Black shirt and blue jeans, white sneakers and a gold watch",
+    )
+    assert clothing_intent.intent == Intent.FOUND_CHILD
+    state = initial_state("synthetic-groq-guidance")
+    state["user_prompt"] = "Can I post the child's photo and location on social media?"
+    guidance = await llm.generate_guidance_response(state)
+    lower = guidance.lower()
+    assert any(word in lower for word in ("photo", "image", "picture"))
+    assert any(word in lower for word in ("avoid", "don't", "do not", "never", "no", "shouldn't")), guidance

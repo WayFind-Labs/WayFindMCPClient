@@ -12,6 +12,7 @@ Verifies that:
 
 from __future__ import annotations
 
+from types import SimpleNamespace
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock
 
@@ -22,15 +23,19 @@ from agent.dependencies import set_llm, set_mcp_client
 from agent.runner import reset_graph, run_agent
 from agent.state import Intent, WayfindState, initial_state
 from app.main import create_app
+from app.config import get_settings
 from app.session import MemorySessionStore
 from schemas.child import AgeRange, ChildSearchCriteria, FoundChildReport
 from schemas.image import ImageMatch
 
-INTERNAL_KEY = "changeme-dev-secret"
+INTERNAL_KEY = get_settings().shelter_backend_api_key
 
 
 @pytest.fixture(autouse=True)
-def clean_deps():
+def clean_deps(monkeypatch):
+    # These legacy pipeline tests exercise future roadmap behavior explicitly;
+    # the public MVP gate remains disabled by default elsewhere.
+    monkeypatch.setattr("agent.graph.get_settings", lambda: SimpleNamespace(enable_deferred_features=True))
     reset_graph()
     set_llm(None)
     set_mcp_client(None)

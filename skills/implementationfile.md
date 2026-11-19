@@ -1,28 +1,46 @@
 # Wayfind — Master Implementation Plan
 
-**Date:** 2026-10-04  
-**Author:** Antigravity  
+## Temporary Render package
+
+The repository owns `render.yaml` and a shared agent/MCP Docker image. The
+Blueprint references the frontend and gateway repositories, wires internal
+hostports, and accepts Neon, Layerbase, and Groq secrets during Render setup.
+The gateway migrates the found-report schema at startup. Browser API requests
+use the frontend's same-origin Next.js proxy.
+
+**Date:** 2026-11-13  
+**Status:** MVP Pivot — Laser-focused on **"I Found a Child: Safe Guidance & Ethical Intake"**  
+**LLM Engine:** Groq (`openai/gpt-oss-120b` default; configurable) via `langchain-groq`
 **Workspaces:** `ShelterApp ui` (Next.js 14), `ShelterAppUiBackend` (FastAPI), `WayFindMCPClient` (FastAPI + LangGraph + FastMCP)
+
+## Implemented update — runtime guidance context, 17 November 2026
+
+- [x] Preserve the supplied found-child reference in `docs/reference/found_child_user_guidance.txt`.
+- [x] Add the MVP runtime knowledge asset at `mcp_client/knowledge/found_child_guidance.md` and load it through `mcp_client/conversation_context.py`.
+- [x] Inject guidance and recent dialogue into LLM follow-ups, guidance-node answers and final LLM-response fallbacks; guidance model failure is explicit.
+- [x] Keep conversation audio recording/transcription post-MVP; prevent the runtime guide from promising unimplemented recording, biometric matching or authority notification.
+- [ ] Complete the separate audit backlog: heuristic-free routing/extraction, intake contract repairs, unknown/correction behavior, idempotency, durable persistence, receipt UI and safe public APIs.
+
+The historical completion labels and 1098 references below do not establish
+current deployed behavior. Use the runtime policy's regional contact records
+for model guidance and the 17 November workspace audit for outstanding work.
 
 ---
 
-## 🧭 Architecture & Design Philosophy
+## 🎯 MVP Pivot: The "Found Child" Crisis Guidance Pitch
 
-1. **Single Landing Page with 3 Scenario Cards:**
-   - **🟢 I want to register my child on Wayfind** → Child pre-registration flow (`REGISTERED_SAFE`).
-   - **🔴 I am looking for my lost child** → If registered children exist, lists them by name with option to select or add new; if none exist, flows straight to search/reporting.
-   - **🔵 I just found a lost child** → Immediate safety guidance + report intake.
-2. **Pre-Seeded Conversational AI Intake:**
-   - Selecting a scenario transitions to the chat assistant with the user's intent pre-seeded.
-3. **Light, Progressive UX:**
-   - No overwhelming long static forms dumped at once.
-   - Information gathered progressively through guided conversational turns and inline mini-forms (`request_information`) with explicit **"Unknown / Don't Know"** toggles that serialize to `null`.
-4. **Deterministic Multi-Attribute Scoring & Temporal Window:**
-   - Mathematical composite scoring (metadata, temporal, geographic, and cascaded biometric vision).
-   - Bounds search space $[T_{\text{lost}} - \Delta t \to \text{Now}]$ without scanning full databases or safe registered profiles.
-5. **Human-in-the-Loop Staff Review & Progressive Alerts:**
-   - High confidence candidate matches are held in a staff review queue before disclosing identity or location.
-   - Phase 1 immediate acknowledgment; Phase 2 verified rescue or masked Twilio proxy bridge.
+> **Pitch Narrative:**
+> *"Imagine you find a child alone on the street. What should you do? Call the police? An orphanage? Post their photo on WhatsApp or Facebook groups? What is the right approach? If you don't know, don't worry — Wayfind will guide you."*
+
+### MVP Core Capabilities (In-Scope Demo):
+1. **Trauma-Informed Crisis Guidance:** Immediate ethical & legal protocols (stay in public, do not post photos to WhatsApp/social media, contact Child Helpline 1098).
+2. **Progressive Found-Child Intake:** Conversational extraction with inline mini-forms (`request_information`) and explicit "Unknown" toggles.
+3. **Safe Anonymous Case Reference:** Generates and presents a non-sensitive case reference card (`WF-FOUND-XXXX`) while notifying backend records.
+
+### Post-MVP Roadmap (Presented as Pitch Vision):
+- **Missing Child Reporting:** Parent intake with temporal window search.
+- **Deterministic Match Engine & HITL Verification:** Mathematical multi-attribute scoring without LLM hallucinations.
+- **Masked Twilio Gateway:** Anonymous voice/SMS bridge connecting verified guardian and finder.
 
 ---
 
@@ -128,9 +146,97 @@
 
 | Secret / Config Key | Destination | Default / Fallback | Production Requirement |
 |---|---|---|---|
-| `GEMINI_API_KEY` | `WayFindMCPClient/.env` | None (required for LLM) | Live Gemini API key |
+| `LLM_PROVIDER` | `WayFindMCPClient/.env` | `groq` | `groq` \| `gemini` \| `openai` |
+| `GROQ_API_KEY` | `WayFindMCPClient/.env` | None (required) | Live Groq API key (`gsk_...`) — **active provider** |
+| `GEMINI_API_KEY` | `WayFindMCPClient/.env` | None (optional alt) | Google AI API key |
 | `DATABASE_URL` | `ShelterAppUiBackend/.env` | Mock memory in `PostgresClient` | `postgresql+asyncpg://user:pass@host:5432/wayfind` |
 | `REDIS_URL` | Backend & Agent `.env` | In-memory session fallback | `redis://localhost:6379/0` |
 | `S3_BUCKET` / `R2_BUCKET` | `ShelterAppUiBackend/.env` | Local temporary directory | S3 / Cloudflare R2 bucket credentials |
 | `TWILIO_ACCOUNT_SID` & `TOKEN` | `ShelterAppUiBackend/.env` | Mock logger | Live Twilio credentials for SMS/Voice |
 | `QDRANT_URL` & `API_KEY` | `WayFindMCPClient/.env` | Static YAML fallback | Live Qdrant cluster |
+# Current found-child write behavior
+
+The report submission path requires the gateway and committed PostgreSQL
+receipt. Synthetic success fallbacks have been removed from the node, MCP
+wrapper, tool and downstream HTTP client.
+The submit node attaches a stable per-draft submission ID for database
+idempotency. Draft IDs bind confirmation/cancellation and distinguish an
+explicit new report from a retry. The local shared Redis provider is Layerbase
+over TLS; agent state keys use `wayfind:agent-state:` and gateway sessions use
+`wayfind:session:`. A synthetic live namespace/two-turn test passed.
+An authenticated internal snapshot route returns a minimal current review or
+committed receipt event for gateway-mediated refresh without exposing raw state.
+Receipt narration reflects irregular sole-admin review without a guaranteed
+response time or an automatic authority alert.
+Found-child draft state includes per-field known/unknown/declined status, with
+unasked represented by absence. Form selections and typed model output update
+it; later facts replace unavailable statuses.
+The MVP conversation policy is English-only. Urdu and Roman Urdu are deferred
+until a later evaluated language rollout.
+The found-child completeness route offers one optional observation per turn
+and records that it was offered. Unknown/declined optional details are not
+repeated. An explicitly unavailable location ends that turn with safety and
+direct-authority guidance, without a receipt.
+The report node emits a summary and waits for explicit confirmation. Failure
+or correction resets the confirmation flag.
+Committed-report and generic tool-failure messages no longer imply staff
+review, matching, callback or staff notification.
+The public case-status branch is deferred, and its internal MCP/HTTP adapters
+no longer fabricate an `under_review` status when the backend fails.
+The agent now gates missing-child search, registration and shelter-search
+intents before extraction/search under `ENABLE_DEFERRED_FEATURES=false`.
+Both agent and gateway flags require explicit activation for roadmap work.
+The agent `/ready` endpoint is authenticated and checks nondefault credentials,
+provider/model configuration, initialized model, Redis and MCP SSE reachability.
+The gateway probes agent `/ready` instead of process-only `/health`.
+Live provider intent/extraction errors now propagate instead of invoking
+regex/keyword fallback; no-key mode retains legacy demo heuristics.
+Fresh text turns are reclassified, so a guidance question can interrupt a
+found-child intake. Groq structured extraction uses JSON Schema output instead
+of function calling, verified by synthetic live intent/extraction tests.
+The first found-child assistant turn emits reviewed safety actions before a
+missing-location question, with a persisted `found_safety_delivered` flag.
+Model guidance timeout still returns static safety help.
+The found-child runtime policy is location neutral and does not require
+matching or a province/city before collecting a report.
+The completed report event includes the backend timestamp for the UI receipt.
+The receipt carries `schema_version=FoundChildIntakeV1`, and agent age/height
+bounds align with gateway validation.
+The confirmation summary includes all known, relevant intake details before
+the write gate opens.
+Structured model corrections now replace earlier facts and validate the
+merged report; approximate ages use range bounds.
+Found-child intake now requires the finder's full name and phone before a
+record can be confirmed or submitted. Groq extraction accepts contact from
+ordinary chat; optional child observations remain skippable. The first safety
+message leads with emergency action in four brief paragraphs separated by
+blank lines. Follow-up and guidance calls use short structured output with
+length and format checks. Invalid guidance returns
+reviewed static safety copy. The private review shows contact; the receipt
+does not. Found-child questions are chat turns, not inline form cards.
+The follow-up output optionally includes a brief grounded acknowledgment.
+Grounded numeric facts are valid in that acknowledgment. A malformed follow-up
+uses a short question for the active field; an actual model call failure still
+returns an honest recoverable error.
+Runtime guidance v5 names the Karachi found-child reporting role, prioritizes
+calling for help, and keeps report intake calm and progressive. The intent
+classifier has explicit found-child answer context. While a found draft is
+open, a misclassified clothing answer cannot enter deferred missing-child
+search; guidance questions still interrupt normally.
+The MCP guidance tool prefers reviewed Karachi static YAML over an unavailable
+RAG service's generic fallback; found-child guidance names police 15 and
+Rescue 1122 and does not promise an official case reference.
+The snapshot route restores unfinished found intake as a chat question, while
+review and receipt snapshots keep their explicit events.
+Optional follow-ups now carry their field name and draft ID in agent events.
+Skip submits an explicit unknown field status; Clear draft resets an unfinished
+report, while Start another report dismisses a receipt without deleting the
+saved record. Finder-contact questions refer to a possible verified parent or
+guardian handover without promising contact or matching.
+Resetting or starting another draft now preserves found-child scenario context;
+a location-only reply advances to a specific question instead of a generic
+unknown-intent fallback.
+Pre-fix sessions with an open found draft ID are recognized by the intent
+guard, so retrying a location in that session also advances intake.
+Recovery uses the current missing field for a specific question when prior
+assistant wording is absent from the stored state.

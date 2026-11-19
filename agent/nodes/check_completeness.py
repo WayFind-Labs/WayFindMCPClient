@@ -38,7 +38,7 @@ logger = logging.getLogger(__name__)
 # ── Minimum required fields ────────────────────────────────────────────────────
 _REGISTER_CHILD_REQUIRED = {"name", "gender", "age"}
 _MISSING_CHILD_REQUIRED  = {"gender", "age", "last_seen_location"}
-_FOUND_CHILD_REQUIRED    = {"found_location"}
+_FOUND_CHILD_REQUIRED    = ("found_location", "reporter_name", "reporter_contact")
 
 # ── Human-readable labels for follow-up questions ─────────────────────────────
 _FIELD_LABELS: dict[str, str] = {
@@ -52,13 +52,20 @@ _FIELD_LABELS: dict[str, str] = {
     "found_location":       "where you found the child",
     "clothing":             "what the child was wearing",
     "hair_color":           "the child's hair colour",
+    "current_circumstances": "whether the child appears hurt or needs immediate help",
+    "reporter_name": "your full name for this report",
+    "reporter_contact": "a phone number where we could reach you about a possible handover to the child's verified parent or guardian",
 }
+
+_FOUND_OPTIONAL_FIELDS = ("age", "clothing", "current_circumstances", "identifying_features")
 
 
 async def check_completeness(state: WayfindState) -> dict:
     """Determine which required fields are still missing and build a follow-up question."""
     intent = state.get("intent")
     missing: list[str] = []
+    optional = False
+    asked = list(state.get("found_optional_questions_asked") or [])
 
     if intent == Intent.REGISTER_CHILD:
         reg = state.get("child_registration_data")
@@ -71,20 +78,32 @@ async def check_completeness(state: WayfindState) -> dict:
     elif intent == Intent.FOUND_CHILD:
         report = state.get("found_child_report")
         missing = _check_found_child(report)
+        if "found_location" in missing and (state.get("found_field_statuses") or {}).get("found_location") in {"unknown", "declined"}:
+            return {
+                "missing_information": missing,
+                "followup_question": None,
+                "found_optional_questions_asked": asked,
+            }
+        if missing and missing[0] != "found_location" and not state.get("submission_confirmed") and not state.get("case_reference"):
+            next_optional = _next_found_optional(report, state.get("found_field_statuses") or {}, asked)
+            if next_optional:
+                missing = [next_optional]
+                asked.append(next_optional)
+                optional = True
 
     else:
         # SHELTER_SEARCH / GUIDANCE / CASE_STATUS / UNKNOWN — no completeness check needed
-        return {"missing_information": [], "followup_question": None}
+        return {"missing_information": [], "followup_question": None, "found_optional_questions_asked": asked}
 
     if not missing:
         logger.info(
             "Session %s: completeness OK for intent=%s",
             state.get("session_id"), intent.value if hasattr(intent, "value") else (str(intent) if intent else "none"),
         )
-        return {"missing_information": [], "followup_question": None}
+        return {"missing_information": [], "followup_question": None, "found_optional_questions_asked": asked}
 
     # Limit to max 2 fields per follow-up turn to avoid overwhelming the user
-    priority_missing = missing[:2]
+    priority_missing = missing[:1] if intent == Intent.FOUND_CHILD else missing[:2]
 
     # Try LLM-generated natural language follow-up question
     question: str | None = None
@@ -94,12 +113,17 @@ async def check_completeness(state: WayfindState) -> dict:
             question = await llm.generate_followup_question(
                 missing_fields=priority_missing,
                 context=state.get("conversation_history", []),
+                optional=optional,
             )
         except Exception as exc:
-            logger.warning("LLM generate_followup_question failed, using template: %s", exc)
+            logger.warning("LLM follow-up unavailable")
+            if getattr(llm, "api_key", ""):
+                raise RuntimeError("Follow-up model unavailable") from exc
 
     if not question:
         question = _build_followup_question(priority_missing, intent)
+        if optional:
+            question += " If you don't know, you can skip this detail."
 
     logger.info(
         "Session %s: missing=%s → followup generated",
@@ -109,7 +133,33 @@ async def check_completeness(state: WayfindState) -> dict:
     return {
         "missing_information": missing,
         "followup_question": question,
+        "found_optional_questions_asked": asked,
     }
+
+
+def _next_found_optional(
+    report: FoundChildReport | dict | None,
+    statuses: dict[str, str],
+    asked: list[str],
+) -> str | None:
+    """Offer each useful optional observation once, then allow partial review."""
+    if report is None:
+        return None
+    if isinstance(report, dict):
+        report = FoundChildReport.model_validate(report)
+    known = {
+        "age": any(value is not None for value in (
+            report.approx_age.exact, report.approx_age.min, report.approx_age.max,
+        )),
+        "clothing": bool(report.clothing),
+        "current_circumstances": bool(report.current_circumstances),
+        "identifying_features": bool(report.identifying_features),
+    }
+    for field in _FOUND_OPTIONAL_FIELDS:
+        status_key = "approx_age" if field == "age" else field
+        if field not in asked and not known[field] and statuses.get(status_key, "unasked") == "unasked":
+            return field
+    return None
 
 
 # ── Completeness checkers ──────────────────────────────────────────────────────
@@ -182,6 +232,12 @@ def _check_found_child(report: FoundChildReport | dict | None) -> list[str]:
     missing = []
     if not loc or loc == "unknown":
         missing.append("found_location")
+    name = report.get("reporter_name") if isinstance(report, dict) else report.reporter_name
+    phone = report.get("reporter_contact") if isinstance(report, dict) else report.reporter_contact
+    if not name or len(name.strip().split()) < 2:
+        missing.append("reporter_name")
+    if not phone or not 7 <= sum(char.isdigit() for char in phone) <= 15 or any(char not in "+-() .0123456789" for char in phone):
+        missing.append("reporter_contact")
     return missing
 
 

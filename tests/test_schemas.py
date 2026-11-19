@@ -62,6 +62,7 @@ def test_found_child_report_schema():
 
     dumped = report.model_dump()
     loaded = FoundChildReport(**dumped)
+    assert loaded.schema_version == "FoundChildIntakeV1"
     assert loaded == report
 
 

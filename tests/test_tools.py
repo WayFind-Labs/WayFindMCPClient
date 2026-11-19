@@ -68,16 +68,22 @@ async def test_image_match_candidates_empty_media_id():
 
 @pytest.mark.asyncio
 async def test_submit_found_child_report_success():
+    from unittest.mock import AsyncMock, patch
+    from schemas.case import FoundChildSubmissionResult
+
     report = FoundChildReport(
         gender="female",
         found_location="G-9 Markaz Islamabad",
-        clothing_description="Red sweater and white shoes",
+        clothing=["Red sweater", "white shoes"],
     )
-    res = await submit_found_child_report(report)
-    assert res.case_reference.startswith("WF-FOUND-")
-    assert res.submitted_at is not None
-    assert "Stay with the child" in res.guidance
-    assert len(res.next_steps) > 0
+    receipt = FoundChildSubmissionResult(
+        case_reference="WF-FOUND-TEST", submitted_at="2026-11-17T00:00:00Z",
+        guidance="Contact authorities directly", next_steps=[], message="Recorded",
+    )
+    with patch("services.postgres_client.get_postgres_client") as get_client:
+        get_client.return_value.submit_found_child = AsyncMock(return_value=receipt)
+        res = await submit_found_child_report(report)
+    assert res == receipt
 
 
 @pytest.mark.asyncio
@@ -138,10 +144,7 @@ async def test_get_guidance_generic():
 # ── Tool 6: get_case_status ───────────────────────────────────────────────────
 
 @pytest.mark.asyncio
-async def test_get_case_status_valid():
-    res = await get_case_status("WF-20260925-0042")
-    assert res.case_reference == "WF-20260925-0042"
-    assert res.status == "under_review"
-    assert res.status_label == "Under Review"
-    assert res.public_message
-    assert len(res.next_steps) > 0
+async def test_get_case_status_requires_backend(monkeypatch):
+    monkeypatch.setattr("services.postgres_client.get_postgres_client", lambda: None)
+    with pytest.raises(RuntimeError, match="unavailable"):
+        await get_case_status("WF-20260925-0042")

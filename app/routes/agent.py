@@ -38,6 +38,7 @@ Security:
 from __future__ import annotations
 
 import logging
+import uuid
 from typing import Any
 
 from fastapi import APIRouter, Request
@@ -45,6 +46,10 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
 from app.session import SessionStore
+from schemas.child import FoundChildReport
+from agent.nodes.check_completeness import _build_followup_question, _FOUND_OPTIONAL_FIELDS
+from agent.nodes.submit_found_child import found_report_review_text
+from agent.state import Intent
 
 logger = logging.getLogger(__name__)
 
@@ -69,6 +74,49 @@ def get_session_store(request: Request) -> SessionStore:
 
 
 # ── Route ──────────────────────────────────────────────────────────────────────
+
+@router.get("/sessions/{session_id}/snapshot", response_model=list[AgentEvent])
+async def get_session_snapshot(session_id: str, request: Request) -> list[AgentEvent]:
+    """Return a minimal public view of an existing found-child session."""
+    state = await get_session_store(request).get(session_id)
+    if not state:
+        return []
+    report_data = state.get("found_child_report")
+    if report_data:
+        report = FoundChildReport.model_validate(report_data)
+        if state.get("case_reference"):
+            return [AgentEvent(
+                type="submission_complete",
+                record_id=state["case_reference"],
+                submitted_at=report.received_at,
+                schema_version="FoundChildIntakeV1",
+            )]
+        missing = state.get("missing_information") or []
+        if missing and "found_location" in missing and (state.get("found_field_statuses") or {}).get("found_location") in {"unknown", "declined"}:
+            return [AgentEvent(
+                type="assistant_message",
+                content="Wayfind needs at least an approximate place or landmark to record this report. Contact the appropriate local authority directly for help; tell me the area if you learn it later.",
+            )]
+        if missing:
+            question = _build_followup_question(missing[:1], Intent.FOUND_CHILD)
+            if missing[0] in _FOUND_OPTIONAL_FIELDS:
+                question += " You can say if you don't know."
+            return [AgentEvent(
+                type="assistant_message",
+                content=f"Your draft is still open.\n\n{question}",
+                draft_id=state.get("found_draft_id"),
+                optional_field=missing[0] if missing[0] in _FOUND_OPTIONAL_FIELDS else None,
+            )]
+        if report.found_location and report.found_location != "unknown" and state.get("found_draft_id"):
+            return [AgentEvent(
+                type="request_confirmation",
+                content=found_report_review_text(report),
+                draft_id=state["found_draft_id"],
+            )]
+        return [AgentEvent(type="assistant_message", content="Your report draft is still open. Where did you find the child?", draft_id=state.get("found_draft_id"))]
+    if state.get("found_draft_id"):
+        return [AgentEvent(type="assistant_message", content="Your new report draft is ready. Tell me where you found the child.", draft_id=state["found_draft_id"])]
+    return []
 
 @router.post(
     "/sessions/{session_id}/events",
@@ -109,6 +157,46 @@ async def handle_event(
 
     # ── 2. Merge incoming event into state ─────────────────────────────────────
     event = body.event
+    form = (event.form_data or {}) if event.type == "user_form_response" else {}
+    if form.get("cancel_found_report") is True:
+        if state.get("case_reference"):
+            return JSONResponse(content=[{"type": "error", "message": "This report is already recorded and cannot be canceled in chat."}])
+        if not state.get("found_draft_id") or form.get("draft_id") != state.get("found_draft_id"):
+            return JSONResponse(content=[{"type": "error", "message": "This report draft has changed. Please review the latest details."}])
+        state["found_child_report"] = None
+        state["found_draft_id"] = None
+        state["found_field_statuses"] = {}
+        state["found_optional_questions_asked"] = []
+        state["submission_confirmed"] = False
+        state["last_form_data"] = None
+        state["intent"] = Intent.FOUND_CHILD
+        state["conversation_history"] = [{"role": "assistant", "content": "The draft was canceled. You can tell me where you found a child when you are ready."}]
+        state["missing_information"] = []
+        state["followup_question"] = None
+        state["agent_events"] = []
+        state["found_safety_delivered"] = True
+        await store.set(session_id, _serialise_state(state))
+        return JSONResponse(content=[{"type": "assistant_message", "content": "The draft was canceled. No report was recorded. You can start again whenever you're ready."}])
+    if form.get("new_found_report") is True:
+        state["found_child_report"] = None
+        state["found_draft_id"] = str(uuid.uuid4())
+        state["found_field_statuses"] = {}
+        state["found_optional_questions_asked"] = []
+        state["case_reference"] = None
+        state["submission_confirmed"] = False
+        state["last_form_data"] = None
+        state["intent"] = Intent.FOUND_CHILD
+        state["conversation_history"] = [{"role": "assistant", "content": "Tell me where you found the child."}]
+        state["missing_information"] = []
+        state["followup_question"] = None
+        state["agent_events"] = []
+        state["found_safety_delivered"] = True
+        await store.set(session_id, _serialise_state(state))
+        return JSONResponse(content=[{"type": "assistant_message", "content": "A new report draft is ready. Tell me where you found the child.", "draft_id": state["found_draft_id"]}])
+    if form.get("confirm_found_report") is True and (
+        not state.get("found_draft_id") or form.get("draft_id") != state.get("found_draft_id")
+    ):
+        return JSONResponse(content=[{"type": "error", "message": "This confirmation is out of date. Please review the latest report."}])
     state = _merge_event(state, event)
 
     # ── 3. Run LangGraph graph ─────────────────────────────────────────────────
@@ -160,6 +248,7 @@ def _merge_event(state: dict[str, Any], event: IncomingEvent) -> dict[str, Any]:
 
     if event.type == "user_message":
         content = event.content or ""
+        state["submission_confirmed"] = False
         state["user_prompt"] = content
         state["conversation_history"] = state.get("conversation_history", []) + [
             {"role": "user", "content": content}
@@ -177,8 +266,10 @@ def _merge_event(state: dict[str, Any], event: IncomingEvent) -> dict[str, Any]:
     elif event.type == "user_form_response":
         # form_data keys are field names (e.g. "age", "clothing")
         form = event.form_data or {}
+        if form.get("confirm_found_report") is True:
+            state["submission_confirmed"] = True
         # Build a human-readable summary for the conversation history
-        summary = "; ".join(f"{k}: {v}" for k, v in form.items())
+        summary = "; ".join(f"{k}: {v}" for k, v in form.items() if k != "draft_id" and not k.startswith("_"))
         state["user_prompt"] = summary
         state["conversation_history"] = state.get("conversation_history", []) + [
             {"role": "user", "content": summary}
@@ -207,11 +298,15 @@ def _initial_state(session_id: str) -> dict[str, Any]:
         "user_prompt":             "",
         "conversation_history":    [],
         "turn_count":              0,
+        "found_safety_delivered":  False,
         "intent":                  None,
         "intent_confidence":       None,
         "child_search_criteria":   None,
         "child_registration_data": None,
         "found_child_report":      None,
+        "found_draft_id":          None,
+        "found_field_statuses":    {},
+        "found_optional_questions_asked": [],
         "missing_information":     [],
         "followup_question":       None,
         "user_location":           None,
@@ -227,6 +322,7 @@ def _initial_state(session_id: str) -> dict[str, Any]:
         "final_response":          None,
         "agent_events":            [],   # v2: accumulated output events per turn
         "last_form_data":          None,
+        "submission_confirmed":   False,
         "errors":                  [],
         "tool_failures":           [],
     }

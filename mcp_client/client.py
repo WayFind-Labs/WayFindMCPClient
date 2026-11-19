@@ -172,15 +172,7 @@ class WayfindMCPClient:
                 except Exception:
                     pass
 
-        import uuid
-        case_ref = f"WF-FOUND-{uuid.uuid4().hex[:8].upper()}"
-        return FoundChildSubmissionResult(
-            case_reference=case_ref,
-            submitted_at="2026-09-25T00:00:00Z",
-            guidance="Stay in a safe public location and notify local authorities.",
-            next_steps=["Wait for child protection officers", "Keep the child safe"],
-            message=f"Report recorded with reference {case_ref}",
-        )
+        raise RuntimeError("Found-child submission did not return a valid backend receipt")
 
     # ── Tool 4: search_support ────────────────────────────────────────────────
 
@@ -281,13 +273,7 @@ class WayfindMCPClient:
                 except Exception:
                     pass
 
-        # Fallback status
-        return CaseStatusResult(
-            case_reference=case_reference,
-            status="under_review",
-            public_message="Your report has been received and is undergoing human review by child protection staff.",
-            next_steps=["Keep your contact phone active", "Report any new sightings to authorities"],
-        )
+        raise ValueError("Case status service returned no valid result")
 
     # ── Internal Tool Dispatcher ──────────────────────────────────────────────
 

@@ -111,14 +111,14 @@ class RedisSessionStore(SessionStore):
                     encoding="utf-8",
                     decode_responses=True,
                 )
-                logger.info("Redis session store connected to %s", self._redis_url)
-            except Exception as exc:
-                logger.error("Failed to connect to Redis: %s", exc)
+                logger.info("Redis agent state store configured")
+            except Exception:
+                logger.error("Failed to configure Redis agent state store")
                 raise
         return self._client
 
     def _key(self, session_id: str) -> str:
-        return f"wayfind:session:{session_id}"
+        return f"wayfind:agent-state:{session_id}"
 
     async def get(self, session_id: str) -> dict[str, Any] | None:
         client = await self._ensure_client()

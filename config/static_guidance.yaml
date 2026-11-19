@@ -1,13 +1,14 @@
 found_child:
   guidance: |
-    If you have found a child alone, do not leave them unattended.
-    Contact local police immediately at your local emergency number.
-    Stay with the child in a safe, public location until authorities arrive.
-    Do not share the child's image or details on social media.
+    If you have found an unaccompanied child on the street:
+    • DO NOT post photos of the child on WhatsApp, Facebook, or public social media. This puts the child's safety at risk.
+    • Stay with the child in a well-lit, public location (such as near a station security post or crowded shop). Do not take the child into private unmonitored spaces.
+    • In Karachi, call Sindh Police 15 promptly. For a medical or rescue emergency, call Sindh Emergency Rescue Service 1122.
+    • Wayfind can record a report after your review and confirmation. It does not contact authorities or issue an official police reference.
   next_steps:
-    - Contact local police
-    - Visit nearest authorized shelter
-    - Submit a report through Wayfind
+    - In Karachi, dial Sindh Police 15, or Rescue 1122 for an emergency
+    - Remain in a public, safe, and visible location
+    - When safe, finish the intake to receive a Wayfind report reference
 
 missing_child:
   no_match_message: |

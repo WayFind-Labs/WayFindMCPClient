@@ -26,12 +26,8 @@ async def test_postgres_client_search_and_submit():
     assert search_res.candidates[0].gender == "female"
 
     report = FoundChildReport(gender="male", found_location="Lahore Railway Station")
-    submit_res = await client.submit_found_child(report)
-    assert submit_res.case_reference.startswith("WF-FOUND-")
-
-    status_res = await client.get_public_case_status(submit_res.case_reference)
-    assert status_res.case_reference == submit_res.case_reference
-    assert status_res.status == "under_review"
+    with pytest.raises(RuntimeError, match="POSTGRES_SERVICE_URL"):
+        await client.submit_found_child(report)
     await client.close()
 
 

@@ -44,9 +44,17 @@ async def test_tool_submit_found_child_report():
         gender="female",
         found_location="Liberty Market",
     )
-    res = await submit_found_child_report(report)
-    assert res.case_reference.startswith("WF-FOUND-")
-    assert res.guidance
+    from unittest.mock import AsyncMock, patch
+    from schemas.case import FoundChildSubmissionResult
+
+    receipt = FoundChildSubmissionResult(
+        case_reference="WF-FOUND-TEST", submitted_at="2026-11-17T00:00:00Z",
+        guidance="Contact authorities directly", next_steps=[], message="Recorded",
+    )
+    with patch("services.postgres_client.get_postgres_client") as get_client:
+        get_client.return_value.submit_found_child = AsyncMock(return_value=receipt)
+        res = await submit_found_child_report(report)
+    assert res.case_reference == receipt.case_reference
 
 
 @pytest.mark.asyncio
@@ -64,8 +72,7 @@ async def test_tool_get_guidance():
 
 
 @pytest.mark.asyncio
-async def test_tool_get_case_status():
-    res = await get_case_status("WF-20260925-0042")
-    assert res.case_reference == "WF-20260925-0042"
-    assert res.status == "under_review"
-    assert res.status_label == "Under Review"
+async def test_tool_get_case_status(monkeypatch):
+    monkeypatch.setattr("services.postgres_client.get_postgres_client", lambda: None)
+    with pytest.raises(RuntimeError, match="unavailable"):
+        await get_case_status("WF-20260925-0042")

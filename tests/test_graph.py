@@ -8,6 +8,7 @@ and full workflow execution for all supported intent pipelines.
 
 from __future__ import annotations
 
+from types import SimpleNamespace
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -24,8 +25,11 @@ from schemas.image import ImageMatch
 
 
 @pytest.fixture(autouse=True)
-def clean_graph_and_deps():
+def clean_graph_and_deps(monkeypatch):
     """Ensure graph singleton and dependencies are reset before and after each test."""
+    # Keep roadmap graph branches under test without enabling them by default
+    # in the public MVP. Individual gate tests override this setting.
+    monkeypatch.setattr("agent.graph.get_settings", lambda: SimpleNamespace(enable_deferred_features=True))
     reset_graph()
     set_llm(None)
     set_mcp_client(None)
@@ -42,6 +46,7 @@ def test_build_graph_structure():
 
     expected_nodes = [
         "understand_intent",
+        "deferred_feature",
         "extract_structured_data",
         "check_completeness",
         "ask_followup",
@@ -74,6 +79,28 @@ def test_runner_singleton_caching():
     reset_graph()
     g3 = get_graph()
     assert g3 is not g1
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("intent", [Intent.MISSING_CHILD, Intent.REGISTER_CHILD, Intent.SHELTER_SEARCH])
+async def test_public_mvp_blocks_deferred_text_intents_before_extraction(monkeypatch, intent):
+    monkeypatch.setattr("agent.graph.get_settings", lambda: SimpleNamespace(enable_deferred_features=False))
+    mock_llm = MagicMock()
+    mock_llm.extract_intent = AsyncMock(return_value=MagicMock(intent=intent, confidence=0.99))
+    mock_llm.extract_child_criteria = AsyncMock()
+    set_llm(mock_llm)
+    mock_mcp = MagicMock()
+    set_mcp_client(mock_mcp)
+
+    state = initial_state(f"deferred-{intent.value}")
+    state["user_prompt"] = "Synthetic request for an unavailable feature"
+    result = await run_agent(state)
+
+    assert result["agent_events"][0]["type"] == "assistant_message"
+    assert "not available" in result["agent_events"][0]["content"] or "cannot" in result["agent_events"][0]["content"]
+    assert not any(event["type"] in {"search_results", "review_pending", "submission_complete"} for event in result["agent_events"])
+    mock_llm.extract_child_criteria.assert_not_awaited()
+    mock_mcp.search_child_records.assert_not_called()
 
 
 @pytest.mark.asyncio
@@ -242,8 +269,72 @@ async def test_graph_missing_child_with_image_runs_image_match():
 
 
 @pytest.mark.asyncio
+async def test_found_child_without_location_sees_safety_before_intake():
+    mock_llm = MagicMock()
+    mock_llm.extract_intent = AsyncMock(
+        return_value=MagicMock(intent=Intent.FOUND_CHILD, confidence=0.98)
+    )
+    mock_llm.extract_found_child_report = AsyncMock(return_value=FoundChildReport(found_location="unknown"))
+    mock_llm.generate_followup_question = AsyncMock(return_value="Where did you find the child?")
+    set_llm(mock_llm)
+
+    state = initial_state("found-no-location")
+    state["user_prompt"] = "I found an unaccompanied child."
+    result = await run_agent(state)
+    events = result["agent_events"]
+    assert "immediate danger" in events[0]["content"]
+    assert events[1]["content"] == "Where did you find the child?"
+    assert all(event["type"] != "request_information" for event in events)
+    assert result["found_safety_delivered"] is True
+
+
+@pytest.mark.asyncio
+async def test_new_found_draft_accepts_location_without_repeating_found_child_intent():
+    mock_llm = MagicMock()
+    mock_llm.extract_intent = AsyncMock(return_value=MagicMock(intent=Intent.UNKNOWN, confidence=0.2))
+    mock_llm.extract_found_child_report = AsyncMock(return_value=FoundChildReport(found_location="Synthetic QA University, Karachi"))
+    mock_llm.generate_followup_question = AsyncMock(return_value="Approximately how old is the child?")
+    set_llm(mock_llm)
+
+    state = initial_state("new-found-location")
+    state["intent"] = Intent.FOUND_CHILD
+    state["found_safety_delivered"] = True
+    state["found_draft_id"] = "synthetic-draft"
+    state["conversation_history"] = [{"role": "assistant", "content": "Tell me where you found the child."}]
+    state["user_prompt"] = "Synthetic QA University, Karachi"
+
+    result = await run_agent(state)
+    assert result["intent"] == Intent.FOUND_CHILD
+    assert result["agent_events"][-1]["content"] == "Approximately how old is the child?"
+    assert result["agent_events"][-1]["optional_field"] == "age"
+
+
+@pytest.mark.asyncio
+async def test_unknown_found_location_gives_assistance_without_submission():
+    mock_llm = MagicMock()
+    mock_llm.extract_intent = AsyncMock(return_value=MagicMock(intent=Intent.FOUND_CHILD, confidence=0.98))
+
+    async def extract(**kwargs):
+        kwargs["field_statuses"]["found_location"] = "unknown"
+        return FoundChildReport(found_location="unknown")
+
+    mock_llm.extract_found_child_report = AsyncMock(side_effect=extract)
+    set_llm(mock_llm)
+    mock_mcp = MagicMock()
+    mock_mcp.submit_found_child_report = AsyncMock()
+    set_mcp_client(mock_mcp)
+    state = initial_state("found-location-unknown")
+    state["user_prompt"] = "I do not know where the child was found."
+    result = await run_agent(state)
+    assert "immediate danger" in result["agent_events"][0]["content"]
+    assert "approximate place" in result["agent_events"][-1]["content"]
+    assert not any(event["type"] in {"request_information", "request_confirmation", "submission_complete"} for event in result["agent_events"])
+    mock_mcp.submit_found_child_report.assert_not_awaited()
+
+
+@pytest.mark.asyncio
 async def test_graph_found_child_pipeline():
-    """Found child intent extracts report, gets safety guidance, and submits found child report."""
+    """Found child intake asks for required finder contact before submission."""
     mock_llm = MagicMock()
     mock_llm.extract_intent = AsyncMock(
         return_value=MagicMock(intent=Intent.FOUND_CHILD, confidence=0.98)
@@ -255,6 +346,7 @@ async def test_graph_found_child_pipeline():
             gender="male",
         )
     )
+    mock_llm.generate_followup_question = AsyncMock(return_value="What is your full name?")
     set_llm(mock_llm)
 
     mock_mcp = MagicMock()
@@ -272,14 +364,17 @@ async def test_graph_found_child_pipeline():
 
     state = initial_state("sess-fc-1")
     state["user_prompt"] = "I found a lost boy around 5 at Liberty Market"
+    state["submission_confirmed"] = True
 
     result = await run_agent(state)
 
     assert result["intent"] == Intent.FOUND_CHILD
-    assert result["case_reference"] == "WF-FOUND-2026-0001"
+    assert result.get("case_reference") is None
 
     event_types = [e["type"] for e in result["agent_events"]]
-    assert "submission_complete" in event_types
+    assert "submission_complete" not in event_types
+    assert "assistant_message" in event_types
+    mock_mcp.submit_found_child_report.assert_not_called()
 
 
 @pytest.mark.asyncio

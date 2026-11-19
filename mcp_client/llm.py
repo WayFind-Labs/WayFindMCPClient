@@ -24,6 +24,7 @@ from typing import Any
 from pydantic import BaseModel, Field
 
 from agent.state import Intent, WayfindState
+from mcp_client.conversation_context import UNAVAILABLE_GUIDANCE, conversation_messages
 from schemas.child import AgeRange, ChildSearchCriteria, FoundChildReport, HeightRange
 
 logger = logging.getLogger(__name__)
@@ -125,8 +126,10 @@ class _FoundChildLLM(BaseModel):
     )
     approximate_age: int | None = Field(
         default=None,
-        description="Estimated age in years if described.",
+        description="Exact age only when explicitly stated as exact.",
     )
+    approximate_age_min: int | None = Field(default=None, description="Lower age bound when approximate or ranged.")
+    approximate_age_max: int | None = Field(default=None, description="Upper age bound when approximate or ranged.")
     found_location: str | None = Field(
         default=None,
         description="Where the child was found (street, landmark, city).",
@@ -151,6 +154,28 @@ class _FoundChildLLM(BaseModel):
         default=None,
         description="Where the child is right now (e.g., 'with reporter at police station').",
     )
+    reporter_name: str | None = Field(default=None, description="Finder's full name, only when explicitly supplied by the finder.")
+    reporter_contact: str | None = Field(default=None, description="Finder's phone number, only when explicitly supplied by the finder. Do not infer from a child's details.")
+    unknown_fields: list[str] = Field(
+        default_factory=list,
+        description="Report field names the user explicitly says they do not know in this latest turn.",
+    )
+    declined_fields: list[str] = Field(
+        default_factory=list,
+        description="Report field names the user explicitly declines to provide in this latest turn.",
+    )
+
+
+class _FollowupLLM(BaseModel):
+    target_field: str = Field(description="The exact field name requested by the caller.")
+    acknowledgment: str | None = Field(default=None, description="One brief, calm acknowledgment grounded in the user's latest message, or null.")
+    question: str = Field(description="One short, natural English question about that field only.")
+
+
+class _GuidanceLLM(BaseModel):
+    action: str = Field(description="The most useful immediate action, in one short plain-English sentence.")
+    context: str | None = Field(default=None, description="One short sentence explaining the next safe step, or null if unnecessary.")
+    question: str | None = Field(default=None, description="At most one short clarification, or null. Never delay urgent action to ask it.")
 
 
 class WayfindLLM:
@@ -162,13 +187,23 @@ class WayfindLLM:
 
     def __init__(
         self,
-        provider: str = "gemini",
+        provider: str = "groq",
         api_key: str | None = None,
         model: str | None = None,
     ) -> None:
         self.provider = provider.lower()
         self.api_key = api_key or ""
-        self.model_name = model or ("gemini-3.8-flash" if self.provider == "gemini" else "gpt-4o-mini")
+        # Default model per provider
+        if model:
+            self.model_name = model
+        elif self.provider == "groq":
+            # Groq retired llama-3.3-70b-versatile on 2026-08-16. Keep the
+            # model configurable, with a currently supported Groq default.
+            self.model_name = "openai/gpt-oss-120b"
+        elif self.provider == "gemini":
+            self.model_name = "gemini-3.8-flash"
+        else:
+            self.model_name = "gpt-4o-mini"
         self._llm: Any | None = None
 
         if self.api_key:
@@ -179,7 +214,16 @@ class WayfindLLM:
     def _init_client(self) -> None:
         """Initialise the underlying LangChain chat model."""
         try:
-            if self.provider == "gemini":
+            if self.provider == "groq":
+                from langchain_groq import ChatGroq
+
+                self._llm = ChatGroq(
+                    model=self.model_name,
+                    groq_api_key=self.api_key,
+                    temperature=0.1,
+                )
+                logger.info("ChatGroq model '%s' initialised", self.model_name)
+            elif self.provider == "gemini":
                 from langchain_google_genai import ChatGoogleGenerativeAI
 
                 self._llm = ChatGoogleGenerativeAI(
@@ -193,6 +237,12 @@ class WayfindLLM:
         except Exception as exc:
             logger.warning("Failed to initialise LLM provider %s: %s", self.provider, exc)
             self._llm = None
+
+    def _structured_output(self, schema: type) -> Any:
+        """Use Groq's JSON schema response format instead of tool calling."""
+        if self.provider == "groq" and self.api_key:
+            return self._llm.with_structured_output(schema, method="json_schema")
+        return self._llm.with_structured_output(schema)
 
     # ── Intent Extraction ──────────────────────────────────────────────────────
 
@@ -212,14 +262,19 @@ class WayfindLLM:
                     "- MISSING_CHILD: User is reporting a missing child or searching for their lost child.\n"
                     "- FOUND_CHILD: User has found an unaccompanied/lost child and wants to report them.\n"
                     "- SHELTER_SEARCH: User is looking for authorized child shelters, NGOs, or intake facilities.\n"
-                    "- GUIDANCE: User is asking general advice, safety tips, or procedures.\n"
+                    "- GUIDANCE: User is asking advice, safety tips, or procedures, even during an active report.\n"
                     "- CASE_STATUS: User wants to check the status of an existing case / report.\n"
                     "- UNKNOWN: Irrelevant, ambiguous, or general greeting.\n\n"
                     "If the user mentions a case reference number (like WF-20260925-0042), extract it into case_reference.\n"
+                    "Classify the LATEST user message. Prior turns provide context but do not lock intent. "
+                    "When the assistant asked a found-child intake question, a brief answer about "
+                    "age, clothing, condition, location, or finder contact remains FOUND_CHILD. "
+                    "Clothing descriptions are observations, not a missing-child search request. "
+                    "A question about posting a photo is GUIDANCE, not a report submission. "
                     "Provide a confidence score between 0.0 and 1.0."
                 )
 
-                structured_llm = self._llm.with_structured_output(IntentResult)
+                structured_llm = self._structured_output(IntentResult)
                 messages = [{"role": "system", "content": system_prompt}]
                 for msg in conversation_history[-4:]:
                     content = getattr(msg, "content", "") if not isinstance(msg, dict) else msg.get("content", "")
@@ -234,9 +289,13 @@ class WayfindLLM:
                 result: IntentResult = await structured_llm.ainvoke(messages)
                 return result
             except Exception as exc:
-                logger.warning("LLM extract_intent call failed, falling back to heuristics: %s", exc)
+                if self.api_key:
+                    raise RuntimeError("Intent model unavailable") from exc
+                logger.warning("LLM extract_intent call failed in demo mode: %s", exc)
 
         # 2. Heuristic fallback
+        if self.api_key:
+            raise RuntimeError("Intent model unavailable")
         return self._heuristic_extract_intent(conversation_history, prompt)
 
     def _heuristic_extract_intent(
@@ -341,7 +400,7 @@ class WayfindLLM:
                     "4. If exact age is given (e.g. '7 years old'), set age_exact=7."
                 )
 
-                structured_llm = self._llm.with_structured_output(_ChildCriteriaLLM)
+                structured_llm = self._structured_output(_ChildCriteriaLLM)
                 extracted: _ChildCriteriaLLM = await structured_llm.ainvoke([
                     {"role": "system", "content": system_prompt},
                     {"role": "user", "content": prompt},
@@ -396,9 +455,13 @@ class WayfindLLM:
                     current = current.model_copy(update=updates)
                 return current
             except Exception as exc:
-                logger.warning("LLM extract_child_criteria failed, falling back to heuristics: %s", exc)
+                if self.api_key:
+                    raise RuntimeError("Child criteria model unavailable") from exc
+                logger.warning("LLM extract_child_criteria failed in demo mode: %s", exc)
 
         # Fallback heuristic merge
+        if self.api_key:
+            raise RuntimeError("Child criteria model unavailable")
         return self._heuristic_merge_missing(current, prompt)
 
     def _merge_form_data_missing(
@@ -472,6 +535,7 @@ class WayfindLLM:
         prompt: str,
         form_data: dict | None = None,
         media_reference: str | None = None,
+        field_statuses: dict[str, str] | None = None,
     ) -> FoundChildReport:
         """Merge-extract found child report from prompt, form_data, and media."""
         if existing_report is None:
@@ -482,22 +546,58 @@ class WayfindLLM:
             current = existing_report.model_copy()
 
         updates: dict[str, Any] = {}
+        statuses = field_statuses if field_statuses is not None else {}
+        status_fields = {"found_location", "approx_age", "gender", "clothing", "identifying_features", "current_circumstances"}
+        form_aliases = {"location": "found_location", "age": "approx_age", "approximate_age": "approx_age"}
+        empty_values: dict[str, Any] = {
+            "found_location": "unknown", "approx_age": AgeRange(), "gender": None,
+            "clothing": [], "identifying_features": [], "current_circumstances": None,
+        }
         if media_reference and not current.media_reference:
             updates["media_reference"] = media_reference
 
         if form_data:
+            raw_statuses = form_data.get("_field_statuses")
+            if isinstance(raw_statuses, dict):
+                for field, status in raw_statuses.items():
+                    target = form_aliases.get(field, field)
+                    if target not in status_fields or status not in {"known", "unknown", "declined"}:
+                        continue
+                    statuses[target] = status
+                    if status != "known":
+                        updates[target] = empty_values[target]
             if "gender" in form_data and form_data["gender"]:
                 updates["gender"] = str(form_data["gender"]).lower()
             if "location" in form_data and form_data["location"]:
                 updates["found_location"] = str(form_data["location"])
             elif "found_location" in form_data and form_data["found_location"]:
                 updates["found_location"] = str(form_data["found_location"])
-            if "approximate_age" in form_data and form_data["approximate_age"]:
+            age_value = form_data.get("approximate_age", form_data.get("age"))
+            if age_value is not None and age_value != "":
                 with contextlib.suppress(ValueError, TypeError):
-                    updates["approximate_age"] = int(form_data["approximate_age"])
+                    updates["approx_age"] = AgeRange(exact=int(age_value))
+            if form_data.get("found_at"):
+                updates["found_at"] = str(form_data["found_at"])
+            if form_data.get("clothing"):
+                clothing = form_data["clothing"]
+                updates["clothing"] = [str(clothing)] if isinstance(clothing, str) else list(clothing)
+            if form_data.get("identifying_features"):
+                features = form_data["identifying_features"]
+                updates["identifying_features"] = [str(features)] if isinstance(features, str) else list(features)
+            if form_data.get("current_circumstances"):
+                updates["current_circumstances"] = str(form_data["current_circumstances"])
+            if form_data.get("authorities_contacted") is not None:
+                updates["authorities_contacted"] = bool(form_data["authorities_contacted"])
+            for field in ("reporter_name", "reporter_contact"):
+                if form_data.get(field):
+                    updates[field] = str(form_data[field]).strip()
+
+        for field in updates:
+            if field in status_fields and statuses.get(field) not in {"unknown", "declined"}:
+                statuses[field] = "known"
 
         if updates:
-            current = current.model_copy(update=updates)
+            current = FoundChildReport.model_validate({**current.model_dump(), **updates})
 
         if self._llm is not None and prompt.strip():
             try:
@@ -506,42 +606,79 @@ class WayfindLLM:
                     "CRITICAL RULES:\n"
                     "1. DO NOT invent or assume any values not explicitly stated.\n"
                     "2. Leave fields None if not mentioned.\n"
-                    "3. Extract found_location if a location is described."
+                    "3. Extract found_location if a location is described.\n"
+                    "4. Extract only facts from the latest message. Corrections replace older facts.\n"
+                    "5. Use age bounds for an approximate range; exact age only when explicitly exact.\n"
+                    "6. If the user explicitly does not know a detail, put its report field name in unknown_fields. "
+                    "If they explicitly refuse to give it, use declined_fields. Allowed names: "
+                    "found_location, approx_age, gender, clothing, identifying_features, current_circumstances. "
+                    "Do not infer unknown or declined from silence.\n"
+                    "7. reporter_name and reporter_contact belong to the FINDER, never the child. "
+                    "Extract them only when the finder explicitly gives their own full name or phone."
                 )
 
-                structured_llm = self._llm.with_structured_output(_FoundChildLLM)
+                structured_llm = self._structured_output(_FoundChildLLM)
                 extracted: _FoundChildLLM = await structured_llm.ainvoke([
                     {"role": "system", "content": system_prompt},
                     {"role": "user", "content": prompt},
                 ])
 
                 llm_updates: dict[str, Any] = {}
-                if extracted.gender and not current.gender:
+                if extracted.gender and extracted.gender.lower() != "unknown":
                     llm_updates["gender"] = extracted.gender.lower()
-                if extracted.approximate_age and not current.approximate_age:
-                    llm_updates["approximate_age"] = extracted.approximate_age
-                if extracted.found_location and (not current.found_location or current.found_location == "unknown"):
+                elif extracted.gender and extracted.gender.lower() == "unknown":
+                    llm_updates["gender"] = None
+                if extracted.approximate_age is not None:
+                    llm_updates["approx_age"] = AgeRange(exact=extracted.approximate_age)
+                elif extracted.approximate_age_min is not None or extracted.approximate_age_max is not None:
+                    llm_updates["approx_age"] = AgeRange(
+                        min=extracted.approximate_age_min, max=extracted.approximate_age_max
+                    )
+                if extracted.found_location:
                     llm_updates["found_location"] = extracted.found_location
-                if extracted.found_date and not current.found_date:
-                    llm_updates["found_date"] = extracted.found_date
-                if extracted.clothing_description and not current.clothing_description:
-                    llm_updates["clothing_description"] = extracted.clothing_description
-                if extracted.physical_condition and not current.physical_condition:
-                    llm_updates["physical_condition"] = extracted.physical_condition
+                if extracted.found_date:
+                    llm_updates["found_at"] = extracted.found_date
+                if extracted.clothing_description:
+                    llm_updates["clothing"] = [extracted.clothing_description]
+                if extracted.physical_condition:
+                    llm_updates["current_circumstances"] = extracted.physical_condition
                 if extracted.distinguishing_features:
-                    llm_updates["distinguishing_features"] = list(dict.fromkeys(
-                        current.distinguishing_features + extracted.distinguishing_features
+                    llm_updates["identifying_features"] = list(dict.fromkeys(
+                        current.identifying_features + extracted.distinguishing_features
                     ))
-                if extracted.current_status and not current.current_status:
-                    llm_updates["current_status"] = extracted.current_status
+                if extracted.current_status:
+                    llm_updates["description"] = extracted.current_status
+                if extracted.reporter_name:
+                    llm_updates["reporter_name"] = extracted.reporter_name.strip()
+                if extracted.reporter_contact:
+                    llm_updates["reporter_contact"] = extracted.reporter_contact.strip()
+
+                for field in llm_updates:
+                    if field in status_fields:
+                        statuses[field] = "known"
+                if extracted.gender and extracted.gender.lower() == "unknown":
+                    statuses["gender"] = "unknown"
+
+                for field in extracted.unknown_fields:
+                    if field in status_fields and field not in llm_updates:
+                        statuses[field] = "unknown"
+                        llm_updates[field] = empty_values[field]
+                for field in extracted.declined_fields:
+                    if field in status_fields and field not in llm_updates:
+                        statuses[field] = "declined"
+                        llm_updates[field] = empty_values[field]
 
                 if llm_updates:
-                    current = current.model_copy(update=llm_updates)
+                    current = FoundChildReport.model_validate({**current.model_dump(), **llm_updates})
                 return current
             except Exception as exc:
-                logger.warning("LLM extract_found_child_report failed, falling back: %s", exc)
+                if self.api_key:
+                    raise RuntimeError("Found-child extraction model unavailable") from exc
+                logger.warning("LLM extract_found_child_report failed in demo mode: %s", exc)
 
         # Fallback heuristic
+        if self.api_key:
+            raise RuntimeError("Found-child extraction model unavailable")
         return self._heuristic_merge_found(current, prompt)
 
     def _heuristic_merge_found(
@@ -574,6 +711,7 @@ class WayfindLLM:
         self,
         missing_fields: list[str],
         context: list[dict] | None = None,
+        optional: bool = False,
     ) -> str:
         """Generate an empathetic, concise natural-language follow-up question."""
         if not missing_fields:
@@ -591,30 +729,98 @@ class WayfindLLM:
             "found_location": "where the child was found",
             "clothing": "what clothing the child was wearing",
             "hair_color": "the child's hair colour",
+            "current_circumstances": "whether the child appears hurt or needs immediate help",
+            "reporter_name": "your full name for this report",
+            "reporter_contact": "a phone number where we could reach you about a possible handover to the child's verified parent or guardian",
         }
 
         if self._llm is not None:
             try:
-                labels = [field_labels.get(f, f.replace("_", " ")) for f in missing_fields[:2]]
+                target_field = missing_fields[0]
+                label = field_labels.get(target_field, target_field.replace("_", " "))
                 prompt = (
-                    f"Ask the user gently and empathetically for these missing details: {', '.join(labels)}.\n"
-                    "Keep the question short (1-2 sentences), caring, and clear. Never be robotic."
+                    "Return one natural English follow-up question and, if useful, one brief "
+                    "acknowledgment of what the finder just shared. The interface already "
+                    "shows immediate safety guidance. Do not add a checklist, emergency number, "
+                    "new fact, or second question. Do not mention a different field. "
+                    "The acknowledgment must be under 70 characters and must not assume "
+                    "the child is safe, unhurt, or that anyone was contacted. "
+                    "For finder contact, mention a possible handover to a verified parent or guardian; "
+                    "do not use the word admin in the user-facing question. "
+                    f"Set target_field exactly to {target_field!r}. Ask only about {label}. "
+                    "Keep question under 180 characters, with no Markdown. "
+                    + ("This field is optional; say it can be skipped if unknown. " if optional else "")
                 )
-                response = await self._llm.ainvoke([
-                    {"role": "system", "content": "You are a caring assistant helping a user report or search for a child."},
-                    {"role": "user", "content": prompt},
-                ])
-                content = getattr(response, "content", "")
-                if isinstance(content, str) and content.strip():
-                    return content.strip()
+                response: _FollowupLLM = await self._structured_output(_FollowupLLM).ainvoke(
+                    conversation_messages(prompt, context)
+                )
+                question = response.question.strip()
+                acknowledgment = (response.acknowledgment or "").strip()
+                reply = f"{acknowledgment}\n\n{question}" if acknowledgment else question
+                if (
+                    response.target_field == target_field
+                    and len(reply) <= 180
+                    and question.count("?") == 1
+                    and "\n" not in question
+                    and len(acknowledgment) <= 70
+                    and "?" not in acknowledgment
+                    and "\n" not in acknowledgment
+                    and not any(mark in reply for mark in ("*", "#"))
+                ):
+                    return reply
+                raise ValueError("Follow-up did not match the requested field contract")
+            except ValueError:
+                logger.warning("Follow-up model output missed the short response contract")
+                return f"Could you tell me {label}?" + (" It's okay if you don't know." if optional else "")
             except Exception as exc:
-                logger.warning("LLM generate_followup_question failed: %s", exc)
+                logger.warning("Follow-up model call unavailable")
+                if self.api_key:
+                    raise RuntimeError("Follow-up model unavailable") from exc
 
         # Fallback template
         labels = [field_labels.get(f, f.replace("_", " ")) for f in missing_fields[:2]]
         if len(labels) == 1:
-            return f"Could you please tell me {labels[0]}?"
-        return f"Could you please tell me {labels[0]} and {labels[1]}?"
+            question = f"Could you please tell me {labels[0]}?"
+        else:
+            question = f"Could you please tell me {labels[0]} and {labels[1]}?"
+        return question + (" It's okay if you don't know." if optional else "")
+
+    async def generate_guidance_response(self, state: WayfindState) -> str:
+        """Use packaged knowledge and recent dialogue without performing tool actions.
+
+        The caller discloses model failure rather than substituting heuristics.
+        """
+        if self._llm is None:
+            raise RuntimeError("Conversation model is unavailable")
+        task = (
+            "Answer the latest question with an action first. If there may be immediate danger, "
+            "say to move to safety and contact local emergency services now before any other text. "
+            "Use the supplied location-neutral guidance and dialogue. Keep action under 140 "
+            "characters, context under 160, and question under 100. Use plain English. "
+            "No lists, Markdown, headings, parenthetical examples or emergency number examples. "
+            "Do not assume the child is safe, healthy, uninjured or in a particular country. "
+            "At most one question, and only after the action. This operation does not save a "
+            "report, record audio, contact an authority or verify a guardian. Previous "
+            "assistant claims are not verified tool receipts."
+        )
+        response: _GuidanceLLM = await self._structured_output(_GuidanceLLM).ainvoke(conversation_messages(
+            task,
+            state.get("conversation_history", []),
+            state.get("user_prompt", ""),
+        ))
+        parts = [response.action.strip(), (response.context or "").strip(), (response.question or "").strip()]
+        if (
+            not parts[0]
+            or len(parts[0]) > 140
+            or len(parts[1]) > 160
+            or len(parts[2]) > 100
+            or any("\n" in part or any(mark in part for mark in ("*", "#")) for part in parts)
+            or any(char.isdigit() for part in parts for char in part)
+            or "?" in parts[0] or "?" in parts[1]
+            or (parts[2] and parts[2].count("?") != 1)
+        ):
+            raise ValueError("Conversation model returned guidance outside the short safety contract")
+        return "\n\n".join(part for part in parts if part)
 
     # ── Final Response Generation ─────────────────────────────────────────────
 
@@ -638,18 +844,22 @@ class WayfindLLM:
                     "3. NEVER reveal internal match scores, algorithms, or technical IDs.\n"
                     "4. Summarise the next steps clearly."
                 )
-                summary = f"Intent: {intent.value if intent else 'unknown'}. Recent events count: {len(events)}."
-                response = await self._llm.ainvoke([
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": f"Provide a brief, reassuring closing message based on this session state: {summary}"},
-                ])
+                intent_name = getattr(intent, "value", intent) or "unknown"
+                task = (
+                    f"{system_prompt}\nCurrent scenario: {intent_name}. "
+                    "No verified submission or notification receipt was supplied to this "
+                    "response operation. Do not claim any action completed. Answer the "
+                    "latest question and explain an appropriate next step."
+                )
+                response = await self._llm.ainvoke(conversation_messages(
+                    task,
+                    state.get("conversation_history", []),
+                    state.get("user_prompt", ""),
+                ))
                 content = getattr(response, "content", "")
                 if isinstance(content, str) and content.strip():
                     return content.strip()
             except Exception as exc:
                 logger.warning("LLM generate_final_response failed: %s", exc)
 
-        return (
-            "Thank you for reaching out to Wayfind. We have recorded your information and "
-            "our team will take the appropriate next steps. If you have any new details, please share them."
-        )
+        return UNAVAILABLE_GUIDANCE

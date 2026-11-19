@@ -2,7 +2,7 @@
 agent/graph.py
 LangGraph graph definition for the Wayfind intelligent agent workflow.
 
-Constructs the StateGraph with all 19 domain nodes, sets up conditional
+Constructs the StateGraph with all 20 domain nodes, sets up conditional
 routing edges (completeness, intent, candidate count, confidence tier),
 and returns the compiled graph.
 """
@@ -14,14 +14,17 @@ from typing import Any
 
 from langgraph.graph import END, START, StateGraph
 from langgraph.graph.state import CompiledStateGraph
+from app.config import get_settings
 
 from agent.nodes import (
     ask_followup,
     check_completeness,
+    deferred_feature,
     evaluate_candidates,
     evaluate_evidence,
     extract_structured_data,
     found_child_extract,
+    found_location_unavailable,
     generate_response,
     get_case_status_node,
     get_guidance_node,
@@ -38,6 +41,7 @@ from agent.nodes import (
     understand_intent,
 )
 from agent.state import (
+    Intent,
     WayfindState,
     candidate_router,
     completeness_router,
@@ -46,6 +50,15 @@ from agent.state import (
 )
 
 logger = logging.getLogger(__name__)
+
+
+def intake_gate(state: WayfindState) -> str:
+    """Stop public MVP turns before deferred extraction or search pipelines."""
+    if not get_settings().enable_deferred_features and state.get("intent") in {
+        Intent.MISSING_CHILD, Intent.REGISTER_CHILD, Intent.SHELTER_SEARCH,
+    }:
+        return "deferred"
+    return "continue"
 
 
 def build_graph() -> CompiledStateGraph:
@@ -85,6 +98,7 @@ def build_graph() -> CompiledStateGraph:
 
     # ── 1. Register all 20 nodes ──────────────────────────────────────────────
     g.add_node("understand_intent", understand_intent)
+    g.add_node("deferred_feature", deferred_feature)
     g.add_node("extract_structured_data", extract_structured_data)
     g.add_node("check_completeness", check_completeness)
     g.add_node("ask_followup", ask_followup)
@@ -98,6 +112,7 @@ def build_graph() -> CompiledStateGraph:
     g.add_node("human_review", human_review)
     g.add_node("no_match", no_match)
     g.add_node("found_child_extract", found_child_extract)
+    g.add_node("found_location_unavailable", found_location_unavailable)
     g.add_node("safety_guidance", safety_guidance)
     g.add_node("submit_found_child", submit_found_child)
     g.add_node("search_support_node", search_support_node)
@@ -107,7 +122,11 @@ def build_graph() -> CompiledStateGraph:
 
     # ── 2. Intake & Comprehension pipeline ────────────────────────────────────
     g.add_edge(START, "understand_intent")
-    g.add_edge("understand_intent", "extract_structured_data")
+    g.add_conditional_edges("understand_intent", intake_gate, {
+        "deferred": "deferred_feature",
+        "continue": "extract_structured_data",
+    })
+    g.add_edge("deferred_feature", END)
     g.add_edge("extract_structured_data", "check_completeness")
 
     # ── 3. Completeness Branch ────────────────────────────────────────────────
@@ -117,9 +136,11 @@ def build_graph() -> CompiledStateGraph:
         {
             "incomplete": "ask_followup",
             "sufficient": "route_intent",
+            "location_unavailable": "found_location_unavailable",
         },
     )
     g.add_edge("ask_followup", END)
+    g.add_edge("found_location_unavailable", END)
 
     # ── 4. Intent Dispatch Branch ─────────────────────────────────────────────
     g.add_conditional_edges(

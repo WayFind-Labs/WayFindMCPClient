@@ -4,6 +4,7 @@ Unit tests for WayfindLLM and WayfindMCPClient (Phase 6).
 """
 
 import pytest
+import httpx
 
 from agent.dependencies import set_llm, set_mcp_client
 from agent.nodes.extract_structured_data import extract_structured_data
@@ -19,6 +20,7 @@ from mcp_client.client import WayfindMCPClient
 from mcp_client.llm import IntentResult, WayfindLLM
 from schemas.child import AgeRange, ChildSearchCriteria, FoundChildReport
 from schemas.location import Location
+from services.postgres_client import PostgresClient
 
 
 @pytest.fixture
@@ -128,9 +130,8 @@ async def test_mcp_submit_found_child(mcp):
         gender="female",
         found_location="Sector G-9",
     )
-    res = await mcp.submit_found_child_report(report)
-    assert res.case_reference.startswith("WF-FOUND-")
-    assert res.guidance
+    with pytest.raises(RuntimeError, match="valid backend receipt"):
+        await mcp.submit_found_child_report(report)
 
 
 @pytest.mark.asyncio
@@ -149,10 +150,26 @@ async def test_mcp_get_guidance(mcp):
 
 @pytest.mark.asyncio
 async def test_mcp_get_case_status(mcp):
-    res = await mcp.get_case_status("WF-20260925-0042")
-    assert res.case_reference == "WF-20260925-0042"
-    assert res.status == "under_review"
-    assert res.status_label == "Under Review"
+    with pytest.raises(ValueError, match="no valid result"):
+        await mcp.get_case_status("WF-20260925-0042")
+
+
+@pytest.mark.asyncio
+async def test_status_backend_outage_never_becomes_under_review():
+    client = PostgresClient()
+    with pytest.raises(RuntimeError, match="POSTGRES_SERVICE_URL"):
+        await client.get_public_case_status("WF-20260925-0042")
+
+    client = PostgresClient(base_url="https://status.invalid")
+    client._client = httpx.AsyncClient(
+        base_url=client.base_url,
+        transport=httpx.MockTransport(lambda request: httpx.Response(503)),
+    )
+    try:
+        with pytest.raises(httpx.HTTPStatusError):
+            await client.get_public_case_status("WF-20260925-0042")
+    finally:
+        await client.close()
 
 
 # ── Node Integration with Wired Clients ─────────────────────────────────────
@@ -186,10 +203,10 @@ async def test_nodes_with_wired_clients(llm, mcp):
     # 5. submit_found_child node
     found_state = initial_state("test-found")
     found_state["user_prompt"] = "I found a child"
-    found_state["found_child_report"] = FoundChildReport(found_location="Bus Stand")
+    found_state["found_child_report"] = FoundChildReport(found_location="Bus Stand", reporter_name="Synthetic Finder", reporter_contact="+1 202 555 0131")
     out_submit = await submit_found_child(found_state)
-    assert "case_reference" in out_submit
-    assert any(e.get("type") == "submission_complete" for e in out_submit["agent_events"])
+    assert "case_reference" not in out_submit
+    assert any(e.get("type") == "request_confirmation" for e in out_submit["agent_events"])
 
     # 6. search_support node
     sup_state = initial_state("test-sup")

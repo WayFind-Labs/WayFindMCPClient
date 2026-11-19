@@ -38,15 +38,16 @@ _CASE_REF_PATTERN = re.compile(r"\bWF-\d{8}-\d{4}\b", re.IGNORECASE)
 
 async def understand_intent(state: WayfindState) -> dict:
     """Detect intent from the current turn's user prompt."""
-    existing_intent = state.get("intent")
-    # If an intent was already identified in a prior turn, preserve it during form fills / follow-ups
-    if existing_intent and existing_intent != Intent.UNKNOWN:
-        prompt_text = state.get("user_prompt", "").lower()
-        if state.get("last_form_data") or not any(w in prompt_text for w in ["cancel", "reset", "start over", "change topic", "exit"]):
-            logger.info("Session %s: Preserving active intent=%s", state.get("session_id"), existing_intent)
-            return {"intent": existing_intent}
-
+    if state.get("submission_confirmed") and state.get("found_child_report"):
+        return {"intent": Intent.FOUND_CHILD}
     llm = get_llm()
+    existing_intent = state.get("intent")
+    # Structured form answers belong to the active draft. A fresh text turn
+    # must be classified so questions and topic shifts can interrupt intake.
+    if state.get("last_form_data") and existing_intent not in (None, Intent.UNKNOWN):
+        return {"intent": existing_intent}
+    if llm is None and existing_intent not in (None, Intent.UNKNOWN):
+        return {"intent": existing_intent}
 
 
     if llm is not None:
@@ -56,8 +57,19 @@ async def understand_intent(state: WayfindState) -> dict:
                 conversation_history=state["conversation_history"],
                 prompt=state["user_prompt"],
             )
+            # A found-child draft is an active task. A short answer to its next
+            # question must not switch to an unrelated, deferred journey when
+            # the classifier loses the context. Guidance may still interrupt.
+            active_found_intake = (
+                (state.get("found_safety_delivered") or state.get("found_draft_id"))
+                and not state.get("submission_confirmed")
+                and not state.get("case_reference")
+            )
+            resolved_intent = result.intent
+            if active_found_intake and result.intent != Intent.GUIDANCE:
+                resolved_intent = Intent.FOUND_CHILD
             updates: dict = {
-                "intent": result.intent,
+                "intent": existing_intent if resolved_intent == Intent.UNKNOWN and existing_intent else resolved_intent,
                 "intent_confidence": result.confidence,
             }
             if result.intent == Intent.CASE_STATUS and result.case_reference:

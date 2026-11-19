@@ -26,10 +26,11 @@ from agent.nodes.submit_found_child import submit_found_child
 from agent.runner import reset_graph, run_agent
 from agent.state import Intent, initial_state
 from app.main import create_app
+from app.config import get_settings
 from schemas.child import AgeRange, ChildSearchCriteria, FoundChildReport
 from schemas.evidence import ConfidenceTier, MatchEvidence
 
-INTERNAL_KEY = "changeme-dev-secret"
+INTERNAL_KEY = get_settings().shelter_backend_api_key
 
 
 @pytest.fixture(autouse=True)
@@ -103,7 +104,8 @@ async def test_submit_found_child_tool_failure_handling():
     set_mcp_client(mock_mcp)
 
     state = initial_state("sess-fail-fc")
-    state["found_child_report"] = FoundChildReport(found_location="Liberty Market")
+    state["found_child_report"] = FoundChildReport(found_location="Liberty Market", reporter_name="Synthetic Finder", reporter_contact="+1 202 555 0131")
+    state["submission_confirmed"] = True
 
     result = await submit_found_child(state)
 
@@ -129,11 +131,11 @@ async def test_human_review_service_failure_falls_back_cleanly():
     with patch("services.review_service.ReviewService.submit", side_effect=Exception("Review service 503")):
         result = await human_review(state)
 
-    assert result["review_required"] is True
-    assert result["case_reference"] is not None
-    assert result["case_reference"].startswith("WF-REV-")
+    assert result["review_required"] is False
+    assert "case_reference" not in result
     event_types = [e["type"] for e in result["agent_events"]]
-    assert "review_pending" in event_types
+    assert "review_pending" not in event_types
+    assert "error" in event_types
 
 
 @pytest.mark.asyncio

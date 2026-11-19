@@ -82,6 +82,23 @@ async def test_node_extract_structured_data_missing_child():
 
 
 @pytest.mark.asyncio
+async def test_found_field_statuses_return_with_extracted_draft():
+    async def extract(**kwargs):
+        kwargs["field_statuses"]["clothing"] = "unknown"
+        return FoundChildReport(found_location="Synthetic market")
+
+    mock_llm = MagicMock()
+    mock_llm.extract_found_child_report = AsyncMock(side_effect=extract)
+    set_llm(mock_llm)
+    state = initial_state("status-session")
+    state["intent"] = Intent.FOUND_CHILD
+    state["user_prompt"] = "I could not see the clothing"
+    result = await extract_structured_data(state)
+    assert result["found_field_statuses"] == {"clothing": "unknown"}
+    assert result["found_child_report"].found_location == "Synthetic market"
+
+
+@pytest.mark.asyncio
 async def test_node_check_completeness():
     state = initial_state("s3")
     state["intent"] = Intent.MISSING_CHILD
@@ -91,6 +108,47 @@ async def test_node_check_completeness():
     assert "age" in res["missing_information"]
     assert "last_seen_location" in res["missing_information"]
     assert res["followup_question"] is not None
+
+
+@pytest.mark.asyncio
+async def test_found_optional_details_are_offered_once_and_can_be_skipped():
+    set_llm(None)
+    state = initial_state("optional-found")
+    state["intent"] = Intent.FOUND_CHILD
+    state["found_child_report"] = FoundChildReport(found_location="Synthetic market")
+    state["found_field_statuses"] = {"approx_age": "unknown", "clothing": "declined"}
+    first = await check_completeness(state)
+    assert first["missing_information"] == ["current_circumstances"]
+    assert "skip" in first["followup_question"].lower()
+    from agent.nodes.ask_followup import ask_followup
+    state["missing_information"] = first["missing_information"]
+    state["followup_question"] = first["followup_question"]
+    state["found_draft_id"] = "synthetic-draft"
+    offered = ask_followup(state)["agent_events"][-1]
+    assert offered["optional_field"] == "current_circumstances"
+    assert offered["draft_id"] == "synthetic-draft"
+    state["found_optional_questions_asked"] = first["found_optional_questions_asked"]
+    state["found_field_statuses"]["current_circumstances"] = "unknown"
+    second = await check_completeness(state)
+    assert second["missing_information"] == ["identifying_features"]
+    state["found_optional_questions_asked"] = second["found_optional_questions_asked"]
+    state["found_field_statuses"]["identifying_features"] = "declined"
+    complete = await check_completeness(state)
+    assert complete["missing_information"] == ["reporter_name", "reporter_contact"]
+
+
+@pytest.mark.asyncio
+async def test_explicitly_unavailable_location_does_not_repeat_location_question():
+    from agent.state import completeness_router
+
+    state = initial_state("unknown-location")
+    state["intent"] = Intent.FOUND_CHILD
+    state["found_child_report"] = FoundChildReport(found_location="unknown")
+    state["found_field_statuses"] = {"found_location": "unknown"}
+    result = await check_completeness(state)
+    state.update(result)
+    assert result["followup_question"] is None
+    assert completeness_router(state) == "location_unavailable"
 
 
 def test_node_ask_followup():
@@ -103,6 +161,23 @@ def test_node_ask_followup():
     types = [e["type"] for e in res["agent_events"]]
     assert "assistant_message" in types
     assert "request_information" in types
+
+
+def test_first_found_followup_delivers_safety_before_location_request():
+    state = initial_state("first-found-followup")
+    state["intent"] = Intent.FOUND_CHILD
+    state["followup_question"] = "Where did you find the child?"
+    state["missing_information"] = ["found_location"]
+    first = ask_followup(state)
+    assert first["agent_events"][0]["type"] == "assistant_message"
+    assert "immediate danger" in first["agent_events"][0]["content"]
+    assert first["agent_events"][1]["content"] == "Where did you find the child?"
+    assert len(first["agent_events"]) == 2
+    assert first["found_safety_delivered"] is True
+
+    state["found_safety_delivered"] = True
+    later = ask_followup(state)
+    assert len(later["agent_events"]) == 1
 
 
 def test_node_route_intent():
@@ -232,17 +307,103 @@ async def test_node_safety_guidance():
 
 
 @pytest.mark.asyncio
+async def test_found_safety_survives_model_outage():
+    unavailable_llm = MagicMock()
+    unavailable_llm.generate_guidance_response = AsyncMock(side_effect=TimeoutError())
+    set_llm(unavailable_llm)
+    state = initial_state("found-model-outage")
+    state["intent"] = Intent.FOUND_CHILD
+    res = await safety_guidance(state)
+    assert "immediate danger" in res["agent_events"][0]["content"]
+    assert len(res["agent_events"]) == 1
+    assert res["found_safety_delivered"] is True
+
+
+@pytest.mark.asyncio
 async def test_node_submit_found_child():
     mock_mcp = MagicMock()
     mock_mcp.submit_found_child_report = AsyncMock(
-        return_value=MagicMock(case_reference="WF-FOUND-999")
+        return_value=MagicMock(case_reference="WF-FOUND-999", submitted_at="2026-11-17T00:00:00Z")
     )
     set_mcp_client(mock_mcp)
 
     state = initial_state("s15")
-    state["found_child_report"] = FoundChildReport(found_location="Mall Road")
+    state["found_child_report"] = FoundChildReport(found_location="Mall Road", reporter_name="Synthetic Finder", reporter_contact="+1 202 555 0131")
+    review = await submit_found_child(state)
+    assert any(event["type"] == "request_confirmation" for event in review["agent_events"])
+    assert "Found near: Mall Road" in review["agent_events"][-1]["content"]
+    mock_mcp.submit_found_child_report.assert_not_called()
+    state["submission_confirmed"] = True
     res = await submit_found_child(state)
     assert res["case_reference"] == "WF-FOUND-999"
+    assert next(event for event in res["agent_events"] if event["type"] == "submission_complete")["submitted_at"] == "2026-11-17T00:00:00Z"
+    assert next(event for event in res["agent_events"] if event["type"] == "submission_complete")["schema_version"] == "FoundChildIntakeV1"
+    receipt_text = next(event["content"] for event in res["agent_events"] if event["type"] == "assistant_message")
+    assert "+1 202 555 0131" not in receipt_text
+    assert "does not notify authorities" in receipt_text
+    assert "reviewed irregularly" in receipt_text
+    assert "no guaranteed monitoring" in receipt_text
+    first_key = mock_mcp.submit_found_child_report.call_args.kwargs["report"].submission_id
+    assert first_key
+    await submit_found_child(state)
+    assert mock_mcp.submit_found_child_report.call_args.kwargs["report"].submission_id == first_key
+
+    retry_state = {**state, "case_reference": res["case_reference"], "found_child_report": res["found_child_report"]}
+    retry = await submit_found_child(retry_state)
+    receipt = next(event for event in retry["agent_events"] if event["type"] == "submission_complete")
+    assert receipt["record_id"] == res["case_reference"]
+    assert receipt["submitted_at"] == "2026-11-17T00:00:00Z"
+    assert mock_mcp.submit_found_child_report.await_count == 2
+    state["found_draft_id"] = "second-draft"
+    await submit_found_child(state)
+    assert mock_mcp.submit_found_child_report.call_args.kwargs["report"].submission_id != first_key
+
+
+@pytest.mark.asyncio
+async def test_found_report_cannot_submit_without_finder_contact():
+    mock_mcp = MagicMock()
+    mock_mcp.submit_found_child_report = AsyncMock()
+    set_mcp_client(mock_mcp)
+    state = initial_state("no-finder-contact")
+    state["found_child_report"] = FoundChildReport(found_location="Synthetic market")
+    state["submission_confirmed"] = True
+    result = await submit_found_child(state)
+    assert "full name" in result["agent_events"][-1]["message"]
+    assert result["submission_confirmed"] is False
+    mock_mcp.submit_found_child_report.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_found_report_review_includes_collected_details():
+    state = initial_state("review-details")
+    state["found_child_report"] = FoundChildReport(
+        found_location="Market", approx_age=AgeRange(min=5, max=7),
+        clothing=["red shirt"], identifying_features=["glasses"],
+        authorities_contacted=False, reporter_name="Synthetic Finder", reporter_contact="+1 202 555 0131",
+    )
+    result = await submit_found_child(state)
+    summary = result["agent_events"][-1]["content"]
+    assert "Approximate age: 5–7" in summary
+    assert "Clothing: red shirt" in summary
+    assert "Visible features: glasses" in summary
+    assert "Authorities contacted: no" in summary
+    assert "+1 202 555 0131" in summary
+
+
+@pytest.mark.asyncio
+async def test_found_child_question_interrupts_intake():
+    mock_llm = MagicMock()
+    mock_llm.extract_intent = AsyncMock(
+        return_value=MagicMock(intent=Intent.GUIDANCE, confidence=0.95)
+    )
+    set_llm(mock_llm)
+    state = initial_state("question-during-intake")
+    state["intent"] = Intent.FOUND_CHILD
+    state["found_child_report"] = FoundChildReport(found_location="Market")
+    state["user_prompt"] = "Can I post the child's photo online?"
+    result = await understand_intent(state)
+    assert result["intent"] == Intent.GUIDANCE
+    mock_llm.extract_intent.assert_awaited_once()
 
 
 @pytest.mark.asyncio
@@ -285,14 +446,7 @@ async def test_node_get_guidance():
 @pytest.mark.asyncio
 async def test_node_get_case_status():
     mock_mcp = MagicMock()
-    mock_mcp.get_case_status = AsyncMock(
-        return_value=MagicMock(
-            case_reference="WF-001",
-            status="pending",
-            last_updated="2026-09-25",
-            public_message="Under review",
-        )
-    )
+    mock_mcp.get_case_status = AsyncMock()
     set_mcp_client(mock_mcp)
 
     state = initial_state("s18")
@@ -300,6 +454,8 @@ async def test_node_get_case_status():
     res = await get_case_status_node(state)
     event_types = [e["type"] for e in res["agent_events"]]
     assert "assistant_message" in event_types
+    assert "cannot check report status" in res["agent_events"][0]["content"]
+    mock_mcp.get_case_status.assert_not_called()
 
 
 @pytest.mark.asyncio
@@ -308,3 +464,13 @@ async def test_node_generate_response():
     state["agent_events"] = [{"type": "search_started"}]
     res = await generate_response(state)
     assert len(res["agent_events"]) >= 1
+
+
+@pytest.mark.asyncio
+async def test_tool_failure_does_not_claim_staff_notification():
+    state = initial_state("tool-failure")
+    state["tool_failures"] = ["submit_found_child_report"]
+    res = await generate_response(state)
+    content = res["agent_events"][0]["content"].lower()
+    assert "notified" not in content
+    assert "contact the appropriate local authority" in content

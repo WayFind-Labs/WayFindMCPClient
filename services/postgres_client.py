@@ -11,8 +11,6 @@ Endpoints called:
 from __future__ import annotations
 
 import logging
-import uuid
-from datetime import UTC, datetime
 from functools import lru_cache
 
 import httpx
@@ -38,7 +36,7 @@ class PostgresClient:
             self._client = httpx.AsyncClient(
                 base_url=self.base_url,
                 timeout=self.timeout,
-                headers={"Content-Type": "application/json"},
+                headers={"Content-Type": "application/json", "X-Internal-Key": get_settings().shelter_backend_api_key},
             )
         return self._client
 
@@ -100,33 +98,12 @@ class PostgresClient:
     ) -> FoundChildSubmissionResult:
         """Submit found child report to the database."""
         report_dict = report.model_dump(exclude_none=True)
-        now_iso = datetime.now(UTC).isoformat()
-        case_ref = f"WF-FOUND-{uuid.uuid4().hex[:8].upper()}"
-
-        if self.base_url:
-            try:
-                client = self._get_client()
-                response = await client.post(
-                    "/api/children/found",
-                    json=report_dict,
-                )
-                if response.status_code in (200, 201):
-                    data = response.json()
-                    return FoundChildSubmissionResult.model_validate(data)
-            except Exception as exc:
-                logger.warning("PostgresClient submit_found_child failed over HTTP: %s", exc)
-
-        return FoundChildSubmissionResult(
-            case_reference=case_ref,
-            submitted_at=now_iso,
-            guidance="Stay with the child in a safe public place and notify local child protection authorities.",
-            next_steps=[
-                "Keep the child safe and in view",
-                "Contact local child protection helpline or emergency police",
-                "Keep your registered contact phone active for updates",
-            ],
-            message=f"Found child report successfully filed with reference {case_ref}.",
-        )
+        if not self.base_url:
+            raise RuntimeError("POSTGRES_SERVICE_URL is required for found-child submission")
+        client = self._get_client()
+        response = await client.post("/api/internal/children/found", json=report_dict)
+        response.raise_for_status()
+        return FoundChildSubmissionResult.model_validate(response.json())
 
     async def get_public_case_status(
         self,
@@ -134,32 +111,12 @@ class PostgresClient:
     ) -> CaseStatusResult:
         """Retrieve public status of a case."""
         clean_ref = (case_reference or "").strip().upper()
-        now_iso = datetime.now(UTC).isoformat()
-
-        if self.base_url:
-            try:
-                client = self._get_client()
-                response = await client.get(f"/api/cases/{clean_ref}")
-                if response.status_code == 200:
-                    data = response.json()
-                    return CaseStatusResult.model_validate(data)
-            except Exception as exc:
-                logger.warning("PostgresClient get_public_case_status failed over HTTP: %s", exc)
-
-        return CaseStatusResult(
-            case_reference=clean_ref,
-            status="under_review",
-            submitted_at=now_iso,
-            last_updated_at=now_iso,
-            public_message=(
-                "Your report is currently undergoing active review by authorized child protection staff. "
-                "You will be contacted immediately if a verified match is confirmed."
-            ),
-            next_steps=[
-                "Keep your registered contact phone active",
-                "Report any new sightings or details to authorities with this reference number",
-            ],
-        )
+        if not self.base_url:
+            raise RuntimeError("POSTGRES_SERVICE_URL is required for case status")
+        client = self._get_client()
+        response = await client.get(f"/api/cases/{clean_ref}")
+        response.raise_for_status()
+        return CaseStatusResult.model_validate(response.json())
 
 
 @lru_cache(maxsize=1)

@@ -84,6 +84,15 @@ _REASONS_HEADER = "Key reasons our system flagged this:\n"
 async def human_review(state: WayfindState) -> dict:
     """Build and submit a full evidence package for human review."""
     existing_events = state.get("agent_events", [])
+    if state.get("case_reference") and state.get("review_required"):
+        return {
+            "review_required": True,
+            "case_reference": state.get("case_reference"),
+            "agent_events": existing_events + [{
+                "type": "assistant_message",
+                "content": f"This potential match is already queued for review. Reference number: {state['case_reference']}.",
+            }],
+        }
     confidence_tier = state.get("confidence_tier")
     match_evidence  = state.get("match_evidence")
     candidate_ids   = state.get("candidate_ids", [])
@@ -115,11 +124,16 @@ async def human_review(state: WayfindState) -> dict:
         )
         case_reference = submission.case_reference
     except Exception as exc:
-        import uuid
-        logger.error("human_review service submission failed: %s — using local reference fallback", exc)
-        case_reference = f"WF-REV-{uuid.uuid4().hex[:8].upper()}"
-        state_errors = state_errors + [f"review_service failed: {exc}"]
-        state_failures = state_failures + ["review_service"]
+        logger.error("human_review service submission failed: %s", exc)
+        return {
+            "review_required": False,
+            "agent_events": existing_events + [{
+                "type": "error",
+                "message": "We could not submit this potential match for human review. No case was created. Please try again or contact local authorities directly.",
+            }],
+            "errors": state_errors + [f"review_service failed: {exc}"],
+            "tool_failures": state_failures + ["review_service"],
+        }
 
     logger.info(
         "Session %s: human_review submitted — tier=%s case_reference=%s evidence_factors=%d",

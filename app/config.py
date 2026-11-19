@@ -33,9 +33,11 @@ class Settings(BaseSettings):
     )
 
     # ── LLM Provider ──────────────────────────────────────────────────────────
-    llm_provider: str = "gemini"
+    llm_provider: str = "groq"
     gemini_api_key: str = ""
     openai_api_key: str = ""
+    groq_api_key: str = ""
+    llm_model: str = "openai/gpt-oss-120b"
 
     # ── Downstream Service URLs ───────────────────────────────────────────────
     postgres_service_url: str = ""
@@ -44,6 +46,7 @@ class Settings(BaseSettings):
     image_backend_url: str = ""
     support_service_url: str = ""
     review_service_url: str = ""
+    enable_deferred_features: bool = False
 
     # ── Media Safety Scan ─────────────────────────────────────────────────────
     media_safety_scan_url: str = ""
@@ -72,7 +75,7 @@ class Settings(BaseSettings):
     @field_validator("llm_provider")
     @classmethod
     def validate_llm_provider(cls, v: str) -> str:
-        allowed = {"gemini", "openai"}
+        allowed = {"gemini", "openai", "groq"}
         if v.lower() not in allowed:
             raise ValueError(f"llm_provider must be one of {allowed}, got: {v!r}")
         return v.lower()

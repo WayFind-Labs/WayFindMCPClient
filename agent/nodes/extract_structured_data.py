@@ -31,6 +31,7 @@ Phase 5 status: STUB — returns unchanged criteria until LLM wired in Phase 6.
 from __future__ import annotations
 
 import logging
+import uuid
 from typing import Any
 
 from agent.dependencies import get_llm
@@ -43,6 +44,8 @@ logger = logging.getLogger(__name__)
 
 async def extract_structured_data(state: WayfindState) -> dict:
     """Merge latest user turn into structured criteria or report."""
+    if state.get("submission_confirmed") and (state.get("last_form_data") or {}).get("confirm_found_report") is True:
+        return {"last_form_data": None}
     intent = state.get("intent")
     llm = get_llm()
 
@@ -60,12 +63,20 @@ async def extract_structured_data(state: WayfindState) -> dict:
                     "last_form_data": None,
                 }
             elif intent == Intent.FOUND_CHILD:
+                statuses = dict(state.get("found_field_statuses") or {})
                 result = await llm.extract_found_child_report(
                     existing_report=state.get("found_child_report"),
                     prompt=state["user_prompt"],
                     form_data=state.get("last_form_data"),
                     media_reference=state.get("media_reference"),
+                    field_statuses=statuses,
                 )
+                return {
+                    "found_child_report": result,
+                    "found_field_statuses": statuses,
+                    "found_draft_id": state.get("found_draft_id") or str(uuid.uuid4()),
+                    "last_form_data": None,
+                }
             elif intent == Intent.REGISTER_CHILD:
                 existing = state.get("child_registration_data")
                 reg = _to_register_data(existing)
@@ -105,6 +116,7 @@ async def extract_structured_data(state: WayfindState) -> dict:
         report = _to_found_report(existing)
         report = _heuristic_merge_found(report, prompt, state.get("last_form_data"), state.get("media_reference"))
         updates["found_child_report"] = report
+        updates["found_draft_id"] = state.get("found_draft_id") or str(uuid.uuid4())
 
     return updates
 

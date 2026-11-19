@@ -1,6 +1,6 @@
 """
 agent/nodes/__init__.py
-Exports all 19 LangGraph node functions for use in agent/graph.py.
+Exports all 20 LangGraph node functions for use in agent/graph.py.
 
 Import pattern in graph.py:
     from agent.nodes import (
@@ -15,10 +15,11 @@ Import pattern in graph.py:
 
 from agent.nodes.ask_followup import ask_followup
 from agent.nodes.check_completeness import check_completeness
+from agent.nodes.deferred_feature import deferred_feature
 from agent.nodes.evaluate_candidates import evaluate_candidates
 from agent.nodes.evaluate_evidence import evaluate_evidence
 from agent.nodes.extract_structured_data import extract_structured_data
-from agent.nodes.found_child_extract import found_child_extract
+from agent.nodes.found_child_extract import found_child_extract, found_location_unavailable
 from agent.nodes.generate_response import generate_response
 from agent.nodes.get_case_status import get_case_status_node
 from agent.nodes.get_guidance import get_guidance_node
@@ -38,6 +39,7 @@ __all__ = [
     "understand_intent",
     "extract_structured_data",
     "check_completeness",
+    "deferred_feature",
     "ask_followup",
     "route_intent",
     "register_child_node",
@@ -49,6 +51,7 @@ __all__ = [
     "human_review",
     "no_match",
     "found_child_extract",
+    "found_location_unavailable",
     "safety_guidance",
     "submit_found_child",
     "search_support_node",
