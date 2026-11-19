@@ -201,8 +201,9 @@ merged report; approximate ages use range bounds.
 Found-child intake now requires the finder's full name and phone before a
 record can be confirmed or submitted. Groq extraction accepts contact from
 ordinary chat; optional child observations remain skippable. The first safety
-message leads with emergency action. Follow-up and guidance calls use short
-structured output with length and format checks. Invalid guidance returns
+message leads with emergency action in four brief paragraphs separated by
+blank lines. Follow-up and guidance calls use short structured output with
+length and format checks. Invalid guidance returns
 reviewed static safety copy. The private review shows contact; the receipt
 does not. Found-child questions are chat turns, not inline form cards.
 The follow-up output optionally includes a brief grounded acknowledgment.

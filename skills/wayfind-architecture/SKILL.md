@@ -199,3 +199,5 @@ only a fallback answer, preserving Karachi numbers and truthful report claims.
 The first found-child turn emits reviewed immediate-danger guidance before a
 missing-location question; `found_safety_delivered` persists across turns so
 the initial safety message is not repeated.
+The initial safety event is four short paragraphs that the chat renders with
+visible spacing.

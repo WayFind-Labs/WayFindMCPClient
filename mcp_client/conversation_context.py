@@ -57,9 +57,10 @@ UNAVAILABLE_GUIDANCE = (
 )
 
 INITIAL_FOUND_SAFETY = (
-    "If the child is in immediate danger or seriously hurt, move to safety "
-    "and call 15 for police or 1122 for emergency rescue in Karachi now.\n\n"
-    "Stay with the child in a visible public place. Do not take them home "
-    "or share their photo or location online. Call before completing this report. "
-    "Wayfind does not contact authorities. Outside Karachi, call local emergency services."
+    "If the child is in immediate danger or seriously hurt, move to safety. "
+    "In Karachi, call police 15 or Rescue 1122 now.\n\n"
+    "Stay with the child in a visible public place.\n\n"
+    "Do not take them home or share their photo or location online.\n\n"
+    "Call before finishing this report. Wayfind does not contact authorities. "
+    "Outside Karachi, use your local emergency number."
 )

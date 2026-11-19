@@ -12,6 +12,7 @@ from agent.nodes.safety_guidance import safety_guidance
 from agent.nodes.understand_intent import understand_intent
 from agent.state import Intent, initial_state
 from mcp_client.conversation_context import (
+    INITIAL_FOUND_SAFETY,
     UNAVAILABLE_GUIDANCE,
     conversation_messages,
     load_conversation_guidance,
@@ -39,6 +40,15 @@ def test_knowledge_loads_outside_checkout(monkeypatch, tmp_path):
     assert "Urdu and Roman Urdu" in text
     assert "Conversation audio recording and transcription are POST-MVP and disabled" in text
     assert "Do not take the child home" in text
+
+
+def test_initial_found_safety_is_short_and_separated_into_actions():
+    paragraphs = INITIAL_FOUND_SAFETY.split("\n\n")
+    assert len(paragraphs) == 4
+    assert all(len(paragraph.split()) <= 27 for paragraph in paragraphs)
+    assert "immediate danger" in paragraphs[0]
+    assert "15" in paragraphs[0] and "1122" in paragraphs[0]
+    assert "Wayfind does not contact authorities" in paragraphs[-1]
 
 
 def test_history_roles_cannot_inject_system_or_tool_authority():

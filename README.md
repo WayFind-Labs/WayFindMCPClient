@@ -292,6 +292,8 @@ review and record a found-child report. The classifier is separately prompted
 with intent definitions and follow-up context; active found drafts keep that
 intent for short detail answers while safety questions can interrupt. The
 frontend provides verified Karachi dial links; Wayfind never places the call.
+The reviewed first-turn safety message uses four short paragraphs with blank
+lines: urgent action, public place, privacy boundary, and Wayfind's call limit.
 When the optional RAG client returns its own static fallback, the MCP guidance
 tool uses the reviewed Karachi YAML instead of older generic fallback copy.
 The authenticated snapshot restores an unfinished found-child intake as a

@@ -132,6 +132,8 @@ Ask one short chat question per intake turn. The `found-child-intake-v5`
 runtime policy gives action-first, plain-English guidance with no long list or
 unverified emergency number. Groq follow-ups and guidance use structured
 output contracts; invalid output fails to reviewed static safety text.
+The first safety message uses short paragraphs separated by blank lines; its
+urgent Karachi call action stays first.
 A follow-up may briefly acknowledge the finder, but cannot assert unobserved
 safety or authority action.
 Allow grounded numbers such as a stated age in acknowledgments. If the model
